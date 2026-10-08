@@ -1,106 +1,54 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Affiliate Automation</title>
+name: Build Affiliate Automation APK
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-    body {
-      font-family: Arial, sans-serif;
-      background: #080b12;
-      color: #ffffff;
-      min-height: 100vh;
-    }
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    .app {
-      max-width: 520px;
-      margin: auto;
-      padding: 22px 16px 40px;
-    }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-    .logo {
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
 
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 12px;
-      color: #8fffa8;
-      background: #102317;
-      padding: 8px 11px;
-      border-radius: 20px;
-    }
+      - name: Install dependencies
+        run: npm install
 
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #35e76f;
-    }
+      - name: Build web
+        run: npm run build
 
-    .hero {
-      background: linear-gradient(145deg, #151b29, #0d111a);
-      border: 1px solid #252d3d;
-      border-radius: 22px;
-      padding: 22px;
-      margin-bottom: 15px;
-    }
+      - name: Add Android platform
+        run: npx cap add android
 
-    .hero small {
-      color: #8994a8;
-      font-size: 12px;
-    }
+      - name: Sync Capacitor
+        run: npx cap sync android
 
-    .hero h1 {
-      font-size: 27px;
-      margin-top: 8px;
-      margin-bottom: 8px;
-    }
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug
 
-    .hero p {
-      color: #929caf;
-      line-height: 1.5;
-      font-size: 14px;
-    }
+      - name: Find APK
+        run: |
+          echo "Mencari file APK..."
+          find android -type f -name "*.apk" -print
 
-    .card {
-      background: #111621;
-      border: 1px solid #222a39;
-      border-radius: 18px;
-      padding: 18px;
-      margin-bottom: 13px;
-    }
-
-    .card-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .card-title h2 {
-      font-size: 16px;
-    }
-
-    .badge {
-      background: #20293a;
-      color: #aeb8ca;
-      padding: 6px
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: affiliate-automation-debug
+          path: |
+            android/**/build/outputs/apk/**/*.apk
