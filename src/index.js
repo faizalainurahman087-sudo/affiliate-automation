@@ -11,3 +11,4 @@ export * from "./monitor.js";
 export * from "./roles.js";
 export * from "./taskStatus.js";
 export * from "./taskManager.js";
+export * from "./deviceController.js";
