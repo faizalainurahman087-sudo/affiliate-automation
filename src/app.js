@@ -18,10 +18,15 @@ import {
 
 import {
   createTestVideoTask,
+  createTelegramTestTasks,
   startTask,
   completeTask,
   failTask
 } from "./taskManager.js";
+
+import {
+  createTelegramTasks
+} from "./telegramTask.js";
 
 const app = bootstrap();
 
@@ -258,11 +263,8 @@ window.pauseAutomation = function () {
 };
 
 /*
- * TUGAS UJI
- *
- * Untuk sementara fungsi ini sengaja dibuat
- * sesederhana mungkin agar kita memastikan
- * tombol dan task system bekerja terlebih dahulu.
+ * TUGAS UJI BIASA
+ * Jangan diubah karena sudah terbukti bekerja.
  */
 window.createTestTask = function () {
   try {
@@ -296,10 +298,6 @@ window.createTestTask = function () {
 
     updateProgress();
 
-    /*
-     * Kalau automation sedang berjalan,
-     * langsung proses tugas.
-     */
     if (getAppState().running) {
       processTask(task.id);
     }
@@ -315,6 +313,91 @@ window.createTestTask = function () {
 
     console.error(
       "CREATE TEST TASK ERROR:",
+      error
+    );
+  }
+};
+
+/*
+ * TEST TELEGRAM
+ *
+ * Simulasi:
+ *
+ * Hari ini
+ *   Video Produk 1
+ *   Video Produk 2
+ * .
+ * Akun 2
+ *   Video Produk Akun 2
+ */
+window.createTelegramTest = function () {
+  try {
+    if (!isWorkerDevice()) {
+      updateStatus(
+        "Monitor",
+        "Menunggu",
+        "Menunggu",
+        "Perangkat harus berada dalam Worker Mode."
+      );
+
+      return;
+    }
+
+    const messages =
+      createTelegramTestTasks();
+
+    const tasks =
+      createTelegramTasks(messages);
+
+    const account1 =
+      tasks.filter(
+        task => task.account === 1
+      );
+
+    const account2 =
+      tasks.filter(
+        task => task.account === 2
+      );
+
+    updateStatus(
+      "Telegram Test",
+      "Tugas masuk",
+      "Bekerja",
+      "TEST TELEGRAM BERHASIL.<br>" +
+      `Total tugas: ${tasks.length}<br>` +
+      `Akun 1: ${account1.length} video<br>` +
+      `Akun 2: ${account2.length} video`
+    );
+
+    console.log(
+      "TELEGRAM TEST MESSAGES:",
+      messages
+    );
+
+    console.log(
+      "TELEGRAM TEST TASKS:",
+      tasks
+    );
+
+    updateProgress();
+
+    if (getAppState().running) {
+      for (const task of tasks) {
+        await processTask(task.id);
+      }
+    }
+
+  } catch (error) {
+    updateStatus(
+      "Error",
+      "Gagal",
+      "Gagal",
+      "TEST TELEGRAM GAGAL.<br>" +
+      `Error: ${error.message}`
+    );
+
+    console.error(
+      "TELEGRAM TEST ERROR:",
       error
     );
   }
@@ -368,6 +451,7 @@ async function processTask(taskId) {
       "Bekerja",
       "Worker sedang memproses tugas.<br>" +
       `ID tugas: ${taskId}<br>` +
+      `Akun: ${task.account || "-"}<br>` +
       "Status: Processing..."
     );
 
@@ -380,6 +464,7 @@ async function processTask(taskId) {
     const result = {
       success: true,
       message: "Video uji berhasil diproses",
+      account: task.account || null,
       processedAt:
         new Date().toISOString()
     };
@@ -395,6 +480,7 @@ async function processTask(taskId) {
       "Bekerja",
       "Tugas video berhasil diselesaikan.<br>" +
       `ID tugas: ${taskId}<br>` +
+      `Akun: ${task.account || "-"}<br>` +
       "Status: Completed."
     );
 
