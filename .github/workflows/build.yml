@@ -41,7 +41,14 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug
 
+      - name: Find APK
+        run: |
+          echo "Mencari file APK..."
+          find android -type f -name "*.apk" -print
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: affiliate-automation
+          name: affiliate-automation-debug
+          path: |
+            android/**/build/outputs/apk/**/*.apk
