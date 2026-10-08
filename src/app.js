@@ -18,10 +18,15 @@ import {
 
 import {
   createTestVideoTask,
+  createTelegramTestTasks,
   startTask,
   completeTask,
   failTask
 } from "./taskManager.js";
+
+import {
+  createTelegramTasks
+} from "./telegramTask.js";
 
 const app = bootstrap();
 
