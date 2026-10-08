@@ -9,3 +9,4 @@ export * from "./taskQueue.js";
 export * from "./worker.js";
 export * from "./monitor.js";
 export * from "./roles.js";
+export * from "./taskStatus.js";
