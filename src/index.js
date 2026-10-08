@@ -13,3 +13,4 @@ export * from "./taskStatus.js";
 export * from "./taskManager.js";
 export * from "./deviceController.js";
 export * from "./bootstrap.js";
+export * from "./telegram.js";
