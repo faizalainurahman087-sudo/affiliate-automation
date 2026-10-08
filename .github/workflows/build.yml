@@ -28,6 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Prepare web files
+        run: |
+          rm -rf www/src
+          cp -r src www/src
+
       - name: Build web
         run: npm run build
 
