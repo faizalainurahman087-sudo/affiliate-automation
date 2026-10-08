@@ -45,3 +45,10 @@ export function failTask(taskId, error) {
 export function deleteTask(taskId) {
   removeTask(taskId);
 }
+export function createTestVideoTask() {
+  return createTask({
+    type: "video",
+    source: "test",
+    title: "Video Affiliate Test"
+  });
+}
