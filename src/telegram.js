@@ -3,7 +3,9 @@ const TELEGRAM_CONFIG_KEY =
 
 export function getTelegramConfig() {
   const saved =
-    localStorage.getItem(TELEGRAM_CONFIG_KEY);
+    localStorage.getItem(
+      TELEGRAM_CONFIG_KEY
+    );
 
   if (!saved) {
     return {
@@ -49,7 +51,9 @@ export function disconnectTelegram() {
 }
 
 export function isTelegramConnected() {
-  return getTelegramConfig().connected === true;
+  return (
+    getTelegramConfig().connected === true
+  );
 }
 
 export function getTelegramStatus() {
@@ -57,7 +61,10 @@ export function getTelegramStatus() {
     getTelegramConfig();
 
   return {
-    connected: config.connected === true,
-    configured: config.configured === true
+    connected:
+      config.connected === true,
+
+    configured:
+      config.configured === true
   };
 }
