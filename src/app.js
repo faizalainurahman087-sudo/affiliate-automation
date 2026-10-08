@@ -3,6 +3,12 @@ import {
 } from "./bootstrap.js";
 
 import {
+  saveTelegramConfig,
+  getTelegramStatus,
+  disconnectTelegram
+} from "./telegram.js";
+
+import {
   setDeviceRole,
   isWorkerDevice
 } from "./deviceController.js";
