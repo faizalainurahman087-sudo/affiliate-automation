@@ -4,14 +4,17 @@ import {
 
 import {
   setDeviceRole,
-  clearDeviceRole,
-  isWorkerDevice,
-  isMonitorDevice
+  isWorkerDevice
 } from "./deviceController.js";
 
 import {
-  getAppState
+  getAppState,
+  updateAppState
 } from "./state.js";
+
+import {
+  getQueue
+} from "./taskQueue.js";
 
 const app = bootstrap();
 
@@ -21,103 +24,170 @@ function updateModeUI(mode) {
   const deviceMode = document.getElementById("deviceMode");
   const modeText = document.getElementById("modeText");
 
-  if (!workerBtn || !monitorBtn) return;
+  if (workerBtn) {
+    workerBtn.classList.remove("active");
+  }
 
-  workerBtn.classList.remove("active");
-  monitorBtn.classList.remove("active");
+  if (monitorBtn) {
+    monitorBtn.classList.remove("active");
+  }
 
   if (mode === "worker") {
-    workerBtn.classList.add("active");
-    deviceMode.textContent = "Worker";
-    modeText.textContent = "WORKER MODE";
-  } else if (mode === "monitor") {
-    monitorBtn.classList.add("active");
-    deviceMode.textContent = "Monitor";
-    modeText.textContent = "MONITOR MODE";
+    if (workerBtn) workerBtn.classList.add("active");
+    if (deviceMode) deviceMode.textContent = "Worker";
+    if (modeText) modeText.textContent = "WORKER MODE";
+  }
+
+  if (mode === "monitor") {
+    if (monitorBtn) monitorBtn.classList.add("active");
+    if (deviceMode) deviceMode.textContent = "Monitor";
+    if (modeText) modeText.textContent = "MONITOR MODE";
+  }
+}
+
+function updateStatus(status, videoStatus, accountStatus, logText) {
+  const statusElement = document.getElementById("status");
+  const videoStatusElement = document.getElementById("videoStatus");
+  const accountStatusElement = document.getElementById("accountStatus");
+  const log = document.getElementById("log");
+
+  if (statusElement) {
+    statusElement.innerHTML =
+      `<span class="dot"></span> ${status}`;
+  }
+
+  if (videoStatusElement) {
+    videoStatusElement.textContent = videoStatus;
+  }
+
+  if (accountStatusElement) {
+    accountStatusElement.textContent = accountStatus;
+  }
+
+  if (log) {
+    log.innerHTML = logText;
+  }
+}
+
+function updateProgress() {
+  const queue = getQueue();
+
+  const completed = queue.filter(
+    task => task.status === "completed"
+  ).length;
+
+  const total = Math.max(queue.length, 10);
+
+  const videoCount = document.getElementById("videoCount");
+  const videoProgress = document.getElementById("videoProgress");
+  const accountVideo = document.getElementById("accountVideo");
+
+  if (videoCount) {
+    videoCount.textContent = `${completed} / ${total}`;
+  }
+
+  if (accountVideo) {
+    accountVideo.textContent = `${completed} / ${total}`;
+  }
+
+  if (videoProgress) {
+    const percent = Math.min(
+      (completed / total) * 100,
+      100
+    );
+
+    videoProgress.style.width = `${percent}%`;
   }
 }
 
 window.setMode = function (mode) {
+  if (mode !== "worker" && mode !== "monitor") {
+    return;
+  }
+
   setDeviceRole(mode);
+
+  updateAppState({
+    deviceMode: mode,
+    connected: true,
+    running: false
+  });
+
   updateModeUI(mode);
 
-  const log = document.getElementById("log");
-
-  if (log) {
-    log.innerHTML =
-      mode === "worker"
-        ? "Perangkat diatur sebagai Worker.<br>Siap menerima tugas."
-        : "Perangkat diatur sebagai Monitor.<br>Menunggu Worker terhubung.";
+  if (mode === "worker") {
+    updateStatus(
+      "Siap",
+      "Menunggu",
+      "Siap",
+      "Worker aktif.<br>Siap menerima antrean video."
+    );
+  } else {
+    updateStatus(
+      "Monitor",
+      "Menunggu",
+      "Menunggu",
+      "Monitor aktif.<br>Menunggu Worker terhubung."
+    );
   }
+
+  updateProgress();
 };
 
 window.startAutomation = function () {
-  const state = getAppState();
-
   if (!isWorkerDevice()) {
-    const log = document.getElementById("log");
-
-    if (log) {
-      log.innerHTML =
-        "Monitor aktif.<br>Menunggu Worker terhubung.";
-    }
+    updateStatus(
+      "Monitor",
+      "Menunggu",
+      "Menunggu",
+      "Monitor aktif.<br>Menunggu Worker terhubung."
+    );
 
     return;
   }
 
-  const status = document.getElementById("status");
-  const videoStatus = document.getElementById("videoStatus");
-  const accountStatus = document.getElementById("accountStatus");
-  const log = document.getElementById("log");
+  updateAppState({
+    running: true
+  });
 
-  if (status) {
-    status.innerHTML =
-      '<span class="dot"></span> Berjalan';
-  }
+  updateStatus(
+    "Berjalan",
+    "Berjalan",
+    "Bekerja",
+    "Worker dimulai.<br>" +
+    "Sistem siap menerima dan memproses antrean video."
+  );
 
-  if (videoStatus) {
-    videoStatus.textContent = "Berjalan";
-  }
+  updateProgress();
 
-  if (accountStatus) {
-    accountStatus.textContent = "Bekerja";
-  }
-
-  if (log) {
-    log.innerHTML =
-      "Worker dimulai.<br>" +
-      "Menunggu antrean video.";
-  }
-
-  console.log("Affiliate Automation started", state);
+  console.log(
+    "Affiliate Automation Worker berjalan",
+    getAppState()
+  );
 };
 
 window.pauseAutomation = function () {
-  const status = document.getElementById("status");
-  const videoStatus = document.getElementById("videoStatus");
-  const accountStatus = document.getElementById("accountStatus");
-  const log = document.getElementById("log");
+  updateAppState({
+    running: false
+  });
 
-  if (status) {
-    status.innerHTML =
-      '<span class="dot"></span> Dijeda';
-  }
+  updateStatus(
+    "Dijeda",
+    "Dijeda",
+    "Dijeda",
+    "Automation dijeda.<br>" +
+    "Tidak ada proses baru yang dijalankan."
+  );
 
-  if (videoStatus) {
-    videoStatus.textContent = "Dijeda";
-  }
+  updateProgress();
 
-  if (accountStatus) {
-    accountStatus.textContent = "Dijeda";
-  }
-
-  if (log) {
-    log.innerHTML =
-      "Automation dijeda.<br>" +
-      "Tidak ada proses baru yang dijalankan.";
-  }
+  console.log(
+    "Affiliate Automation Worker dijeda"
+  );
 };
 
 if (app.deviceMode) {
   updateModeUI(app.deviceMode);
-      }
+}
+
+updateProgress();
