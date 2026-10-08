@@ -3,47 +3,100 @@ import {
 } from "./taskManager.js";
 
 import {
-  isValidTelegramVideo
+  parseTelegramMessages
 } from "./telegramFilter.js";
 
-export function createTelegramVideoTask(video) {
-  if (!isValidTelegramVideo(video)) {
-    throw new Error(
-      "Video Telegram tidak memenuhi aturan."
-    );
-  }
+export function createTelegramTasks(
+  messages = []
+) {
+  const groups =
+    parseTelegramMessages(messages);
 
-  return createTask({
-    type: "video",
-    source: "telegram",
-
-    telegram: {
-      messageId: video.messageId || null,
-      chatId: video.chatId || null,
-      date: video.date || null,
-      fileId: video.fileId || null
-    },
-
-    title:
-      video.title ||
-      "Video Telegram"
-  });
-}
-
-export function createTelegramVideoTasks(videos = []) {
   const tasks = [];
 
-  for (const video of videos) {
-    try {
+  for (const group of groups) {
+    for (const video of group.videos) {
+
       const task =
-        createTelegramVideoTask(video);
+        createTask({
+          type: "video",
+          source: "telegram",
+
+          account: group.account,
+
+          telegram: {
+            messageId:
+              video.messageId || null,
+
+            chatId:
+              video.chatId || null,
+
+            date:
+              video.date || null,
+
+            fileId:
+              video.fileId || null,
+
+            link:
+              video.link || null
+          },
+
+          title:
+            video.title ||
+            `Video Akun ${group.account}`
+        });
 
       tasks.push(task);
-    } catch {
-      // Video yang tidak memenuhi aturan
-      // tidak dimasukkan ke antrean.
     }
   }
 
   return tasks;
 }
+
+export function createTelegramTasksForAccount(
+  messages = [],
+  accountNumber
+) {
+  const groups =
+    parseTelegramMessages(messages);
+
+  const group =
+    groups.find(
+      item =>
+        item.account === accountNumber
+    );
+
+  if (!group) {
+    return [];
+  }
+
+  return group.videos.map(video =>
+    createTask({
+      type: "video",
+      source: "telegram",
+
+      account: accountNumber,
+
+      telegram: {
+        messageId:
+          video.messageId || null,
+
+        chatId:
+          video.chatId || null,
+
+        date:
+          video.date || null,
+
+        fileId:
+          video.fileId || null,
+
+        link:
+          video.link || null
+      },
+
+      title:
+        video.title ||
+        `Video Akun ${accountNumber}`
+    })
+  );
+    }
