@@ -16,6 +16,10 @@ import {
   getQueue
 } from "./taskQueue.js";
 
+import {
+  createTestVideoTask
+} from "./taskManager.js";
+
 const app = bootstrap();
 
 function updateModeUI(mode) {
@@ -24,13 +28,8 @@ function updateModeUI(mode) {
   const deviceMode = document.getElementById("deviceMode");
   const modeText = document.getElementById("modeText");
 
-  if (workerBtn) {
-    workerBtn.classList.remove("active");
-  }
-
-  if (monitorBtn) {
-    monitorBtn.classList.remove("active");
-  }
+  if (workerBtn) workerBtn.classList.remove("active");
+  if (monitorBtn) monitorBtn.classList.remove("active");
 
   if (mode === "worker") {
     if (workerBtn) workerBtn.classList.add("active");
@@ -45,11 +44,23 @@ function updateModeUI(mode) {
   }
 }
 
-function updateStatus(status, videoStatus, accountStatus, logText) {
-  const statusElement = document.getElementById("status");
-  const videoStatusElement = document.getElementById("videoStatus");
-  const accountStatusElement = document.getElementById("accountStatus");
-  const log = document.getElementById("log");
+function updateStatus(
+  status,
+  videoStatus,
+  accountStatus,
+  logText
+) {
+  const statusElement =
+    document.getElementById("status");
+
+  const videoStatusElement =
+    document.getElementById("videoStatus");
+
+  const accountStatusElement =
+    document.getElementById("accountStatus");
+
+  const log =
+    document.getElementById("log");
 
   if (statusElement) {
     statusElement.innerHTML =
@@ -57,11 +68,13 @@ function updateStatus(status, videoStatus, accountStatus, logText) {
   }
 
   if (videoStatusElement) {
-    videoStatusElement.textContent = videoStatus;
+    videoStatusElement.textContent =
+      videoStatus;
   }
 
   if (accountStatusElement) {
-    accountStatusElement.textContent = accountStatus;
+    accountStatusElement.textContent =
+      accountStatus;
   }
 
   if (log) {
@@ -72,36 +85,50 @@ function updateStatus(status, videoStatus, accountStatus, logText) {
 function updateProgress() {
   const queue = getQueue();
 
-  const completed = queue.filter(
-    task => task.status === "completed"
-  ).length;
+  const completed =
+    queue.filter(
+      task => task.status === "completed"
+    ).length;
 
-  const total = Math.max(queue.length, 10);
+  const total =
+    Math.max(queue.length, 10);
 
-  const videoCount = document.getElementById("videoCount");
-  const videoProgress = document.getElementById("videoProgress");
-  const accountVideo = document.getElementById("accountVideo");
+  const videoCount =
+    document.getElementById("videoCount");
+
+  const videoProgress =
+    document.getElementById("videoProgress");
+
+  const accountVideo =
+    document.getElementById("accountVideo");
 
   if (videoCount) {
-    videoCount.textContent = `${completed} / ${total}`;
+    videoCount.textContent =
+      `${completed} / ${total}`;
   }
 
   if (accountVideo) {
-    accountVideo.textContent = `${completed} / ${total}`;
+    accountVideo.textContent =
+      `${completed} / ${total}`;
   }
 
   if (videoProgress) {
-    const percent = Math.min(
-      (completed / total) * 100,
-      100
-    );
+    const percent =
+      Math.min(
+        (completed / total) * 100,
+        100
+      );
 
-    videoProgress.style.width = `${percent}%`;
+    videoProgress.style.width =
+      `${percent}%`;
   }
 }
 
 window.setMode = function (mode) {
-  if (mode !== "worker" && mode !== "monitor") {
+  if (
+    mode !== "worker" &&
+    mode !== "monitor"
+  ) {
     return;
   }
 
@@ -120,14 +147,16 @@ window.setMode = function (mode) {
       "Siap",
       "Menunggu",
       "Siap",
-      "Worker aktif.<br>Siap menerima antrean video."
+      "Worker aktif.<br>" +
+      "Siap menerima antrean video."
     );
   } else {
     updateStatus(
       "Monitor",
       "Menunggu",
       "Menunggu",
-      "Monitor aktif.<br>Menunggu Worker terhubung."
+      "Monitor aktif.<br>" +
+      "Menunggu Worker terhubung."
     );
   }
 
@@ -140,7 +169,8 @@ window.startAutomation = function () {
       "Monitor",
       "Menunggu",
       "Menunggu",
-      "Monitor aktif.<br>Menunggu Worker terhubung."
+      "Monitor aktif.<br>" +
+      "Menunggu Worker terhubung."
     );
 
     return;
@@ -155,13 +185,14 @@ window.startAutomation = function () {
     "Berjalan",
     "Bekerja",
     "Worker dimulai.<br>" +
-    "Sistem siap menerima dan memproses antrean video."
+    "Sistem siap menerima dan memproses " +
+    "antrean video."
   );
 
   updateProgress();
 
   console.log(
-    "Affiliate Automation Worker berjalan",
+    "Worker berjalan",
     getAppState()
   );
 };
@@ -180,14 +211,44 @@ window.pauseAutomation = function () {
   );
 
   updateProgress();
+};
+
+window.createTestTask = function () {
+  if (!isWorkerDevice()) {
+    updateStatus(
+      "Monitor",
+      "Menunggu",
+      "Menunggu",
+      "Perangkat harus berada dalam " +
+      "Worker Mode."
+    );
+
+    return;
+  }
+
+  const task =
+    createTestVideoTask();
+
+  updateProgress();
+
+  updateStatus(
+    "Berjalan",
+    "Tugas masuk",
+    "Bekerja",
+    "Tugas video uji berhasil dibuat.<br>" +
+    `ID tugas: ${task.id}`
+  );
 
   console.log(
-    "Affiliate Automation Worker dijeda"
+    "Test video task:",
+    task
   );
 };
 
 if (app.deviceMode) {
-  updateModeUI(app.deviceMode);
+  updateModeUI(
+    app.deviceMode
+  );
 }
 
 updateProgress();
