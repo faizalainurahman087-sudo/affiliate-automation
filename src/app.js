@@ -252,6 +252,31 @@ window.createTestTask = function () {
     return;
   }
 
+  const task =
+    createTestVideoTask();
+
+  updateProgress();
+
+  updateStatus(
+    "Berjalan",
+    "Tugas masuk",
+    "Bekerja",
+    "Tugas video uji berhasil dibuat.<br>" +
+    `ID tugas: ${task.id}<br>` +
+    "Status: Menunggu diproses."
+  );
+
+  console.log(
+    "Test video task:",
+    task
+  );
+
+  processTask(task.id);
+};
+
+    return;
+  }
+
   const messages =
     createTelegramTestTasks();
 
