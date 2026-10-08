@@ -14,3 +14,5 @@ export * from "./taskManager.js";
 export * from "./deviceController.js";
 export * from "./bootstrap.js";
 export * from "./telegram.js";
+export * from "./telegramFilter.js";
+export * from "./telegramTask.js";
