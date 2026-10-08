@@ -1,0 +1,19 @@
+{
+  "name": "affiliate-automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo Affiliate Automation ready"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
