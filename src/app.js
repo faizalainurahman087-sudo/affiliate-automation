@@ -597,3 +597,45 @@ if (app.deviceMode) {
 }
 
 updateProgress();
+import {
+  saveTelegramConfig,
+  getTelegramStatus,
+  disconnectTelegram
+} from "./telegram.js";
+
+window.connectTelegram = function () {
+  try {
+    saveTelegramConfig({
+      connected: true,
+      configured: false
+    });
+
+    const status =
+      getTelegramStatus();
+
+    updateStatus(
+      "Telegram",
+      status.connected
+        ? "Terhubung"
+        : "Terputus",
+      "Siap",
+      "Telegram berhasil dihubungkan.<br>" +
+      "Status: Koneksi lokal aktif.<br>" +
+      "Tahap berikutnya: koneksi Telegram sebenarnya."
+    );
+
+    console.log(
+      "TELEGRAM STATUS:",
+      status
+    );
+
+  } catch (error) {
+    updateStatus(
+      "Error",
+      "Gagal",
+      "Gagal",
+      "Gagal menghubungkan Telegram.<br>" +
+      error.message
+    );
+  }
+};
