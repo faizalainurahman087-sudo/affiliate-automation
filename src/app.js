@@ -257,6 +257,39 @@ window.createTestTask = function () {
     return;
   }
 
+  const messages =
+    createTelegramTestTasks();
+
+  const tasks =
+    createTelegramTasks(messages);
+
+  updateProgress();
+
+  updateStatus(
+    "Berjalan",
+    "Tugas Telegram masuk",
+    "Bekerja",
+    `Tugas Telegram berhasil dibuat.<br>` +
+    `Total tugas: ${tasks.length}<br>` +
+    `Akun 1: ${tasks.filter(task => task.account === 1).length} video<br>` +
+    `Akun 2: ${tasks.filter(task => task.account === 2).length} video`
+  );
+
+  console.log(
+    "Telegram test messages:",
+    messages
+  );
+
+  console.log(
+    "Telegram test tasks:",
+    tasks
+  );
+
+  for (const task of tasks) {
+    processTask(task.id);
+  }
+};
+
   const task =
     createTestVideoTask();
 
