@@ -46,6 +46,10 @@ function updateModeUI(mode) {
     monitorBtn.classList.remove("active");
   }
 
+  if (deviceMode) {
+    deviceMode.classList.remove("active");
+  }
+
   if (mode === "worker") {
     if (workerBtn) {
       workerBtn.classList.add("active");
@@ -66,6 +70,7 @@ function updateModeUI(mode) {
     }
 
     if (deviceMode) {
+      deviceMode.classList.add("active");
       deviceMode.textContent = "Monitor";
     }
 
@@ -163,35 +168,48 @@ window.setMode = function (mode) {
     return;
   }
 
-  setDeviceRole(mode);
+  try {
+    setDeviceRole(mode);
 
-  updateAppState({
-    deviceMode: mode,
-    connected: true,
-    running: false
-  });
+    updateAppState({
+      deviceMode: mode,
+      connected: true,
+      running: false
+    });
 
-  updateModeUI(mode);
+    updateModeUI(mode);
 
-  if (mode === "worker") {
+    if (mode === "worker") {
+      updateStatus(
+        "Siap",
+        "Menunggu",
+        "Siap",
+        "Worker aktif.<br>" +
+        "Siap menerima antrean video."
+      );
+    }
+
+    if (mode === "monitor") {
+      updateStatus(
+        "Monitor",
+        "Menunggu",
+        "Menunggu",
+        "Monitor aktif.<br>" +
+        "Menunggu Worker terhubung."
+      );
+    }
+
+    updateProgress();
+
+  } catch (error) {
     updateStatus(
-      "Siap",
-      "Menunggu",
-      "Siap",
-      "Worker aktif.<br>" +
-      "Siap menerima antrean video."
-    );
-  } else {
-    updateStatus(
-      "Monitor",
-      "Menunggu",
-      "Menunggu",
-      "Monitor aktif.<br>" +
-      "Menunggu Worker terhubung."
+      "Error",
+      "Gagal",
+      "Gagal",
+      "Gagal mengubah mode.<br>" +
+      error.message
     );
   }
-
-  updateProgress();
 };
 
 window.startAutomation = function () {
@@ -200,8 +218,7 @@ window.startAutomation = function () {
       "Monitor",
       "Menunggu",
       "Menunggu",
-      "Monitor aktif.<br>" +
-      "Menunggu Worker terhubung."
+      "Perangkat harus berada dalam Worker Mode."
     );
 
     return;
@@ -237,208 +254,4 @@ window.pauseAutomation = function () {
     "Tidak ada proses baru yang dijalankan."
   );
 
-  updateProgress();
-};
-
-window.createTestTask = function () {
-  if (!isWorkerDevice()) {
-    updateStatus(
-      "Monitor",
-      "Menunggu",
-      "Menunggu",
-      "Perangkat harus berada dalam Worker Mode."
-    );
-
-    return;
-  }
-
-  const task =
-    createTestVideoTask();
-
-  updateProgress();
-
-  updateStatus(
-    "Berjalan",
-    "Tugas masuk",
-    "Bekerja",
-    "Tugas video uji berhasil dibuat.<br>" +
-    `ID tugas: ${task.id}<br>` +
-    "Status: Menunggu diproses."
-  );
-
-  console.log(
-    "Test video task:",
-    task
-  );
-
-  processTask(task.id);
-};
-
-    return;
-  }
-
-  const messages =
-    createTelegramTestTasks();
-
-  const tasks =
-    createTelegramTasks(messages);
-
-  updateProgress();
-
-  updateStatus(
-    "Berjalan",
-    "Tugas Telegram masuk",
-    "Bekerja",
-    `Tugas Telegram berhasil dibuat.<br>` +
-    `Total tugas: ${tasks.length}<br>` +
-    `Akun 1: ${tasks.filter(task => task.account === 1).length} video<br>` +
-    `Akun 2: ${tasks.filter(task => task.account === 2).length} video`
-  );
-
-  console.log(
-    "Telegram test messages:",
-    messages
-  );
-
-  console.log(
-    "Telegram test tasks:",
-    tasks
-  );
-
-  for (const task of tasks) {
-    processTask(task.id);
-  }
-};
-
-  const task =
-    createTestVideoTask();
-
-  updateProgress();
-
-  updateStatus(
-    "Berjalan",
-    "Tugas masuk",
-    "Bekerja",
-    "Tugas video uji berhasil dibuat.<br>" +
-    `ID tugas: ${task.id}<br>` +
-    "Status: Menunggu diproses."
-  );
-
-  console.log(
-    "Test video task:",
-    task
-  );
-
-  processTask(task.id);
-};
-
-async function processPendingTasks() {
-  const queue = getQueue();
-
-  const pendingTasks =
-    queue.filter(
-      task => task.status === "pending"
-    );
-
-  for (const task of pendingTasks) {
-    if (!isWorkerDevice()) {
-      return;
-    }
-
-    const state = getAppState();
-
-    if (!state.running) {
-      return;
-    }
-
-    await processTask(task.id);
-  }
-}
-
-async function processTask(taskId) {
-  if (!isWorkerDevice()) {
-    return;
-  }
-
-  const state = getAppState();
-
-  if (!state.running) {
-    return;
-  }
-
-  const task =
-    getQueue().find(
-      item => item.id === taskId
-    );
-
-  if (!task) {
-    return;
-  }
-
-  try {
-    startTask(taskId);
-
-    updateStatus(
-      "Berjalan",
-      "Diproses",
-      "Bekerja",
-      "Worker sedang memproses tugas.<br>" +
-      `ID tugas: ${taskId}<br>` +
-      "Status: Processing..."
-    );
-
-    updateProgress();
-
-    await new Promise(resolve =>
-      setTimeout(resolve, 2000)
-    );
-
-    const result = {
-      success: true,
-      message: "Video uji berhasil diproses",
-      processedAt: new Date().toISOString()
-    };
-
-    completeTask(
-      taskId,
-      result
-    );
-
-    updateStatus(
-      "Berjalan",
-      "Selesai",
-      "Bekerja",
-      "Tugas video berhasil diselesaikan.<br>" +
-      `ID tugas: ${taskId}<br>` +
-      "Status: Completed."
-    );
-
-    updateProgress();
-
-  } catch (error) {
-
-    failTask(
-      taskId,
-      error
-    );
-
-    updateStatus(
-      "Berjalan",
-      "Gagal",
-      "Bekerja",
-      "Tugas video gagal diproses.<br>" +
-      `ID tugas: ${taskId}<br>` +
-      `Error: ${error.message}`
-    );
-
-    updateProgress();
-  }
-}
-
-if (app.deviceMode) {
-  updateModeUI(
-    app.deviceMode
-  );
-}
-
-updateProgress();
+  updateProgress
