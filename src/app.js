@@ -254,4 +254,176 @@ window.pauseAutomation = function () {
     "Tidak ada proses baru yang dijalankan."
   );
 
-  updateProgress
+  updateProgress();
+};
+
+/*
+ * TUGAS UJI
+ *
+ * Untuk sementara fungsi ini sengaja dibuat
+ * sesederhana mungkin agar kita memastikan
+ * tombol dan task system bekerja terlebih dahulu.
+ */
+window.createTestTask = function () {
+  try {
+    if (!isWorkerDevice()) {
+      updateStatus(
+        "Monitor",
+        "Menunggu",
+        "Menunggu",
+        "Perangkat harus berada dalam Worker Mode."
+      );
+
+      return;
+    }
+
+    const task =
+      createTestVideoTask();
+
+    updateStatus(
+      "Berjalan",
+      "Tugas masuk",
+      "Bekerja",
+      "TUGAS UJI BERHASIL DIBUAT.<br>" +
+      `ID tugas: ${task.id}<br>` +
+      "Status: Menunggu diproses."
+    );
+
+    console.log(
+      "TEST TASK:",
+      task
+    );
+
+    updateProgress();
+
+    /*
+     * Kalau automation sedang berjalan,
+     * langsung proses tugas.
+     */
+    if (getAppState().running) {
+      processTask(task.id);
+    }
+
+  } catch (error) {
+    updateStatus(
+      "Error",
+      "Gagal",
+      "Gagal",
+      "Gagal membuat tugas uji.<br>" +
+      `Error: ${error.message}`
+    );
+
+    console.error(
+      "CREATE TEST TASK ERROR:",
+      error
+    );
+  }
+};
+
+async function processPendingTasks() {
+  const queue = getQueue();
+
+  const pendingTasks =
+    queue.filter(
+      task => task.status === "pending"
+    );
+
+  for (const task of pendingTasks) {
+    if (!isWorkerDevice()) {
+      return;
+    }
+
+    if (!getAppState().running) {
+      return;
+    }
+
+    await processTask(task.id);
+  }
+}
+
+async function processTask(taskId) {
+  if (!isWorkerDevice()) {
+    return;
+  }
+
+  if (!getAppState().running) {
+    return;
+  }
+
+  const task =
+    getQueue().find(
+      item => item.id === taskId
+    );
+
+  if (!task) {
+    return;
+  }
+
+  try {
+    startTask(taskId);
+
+    updateStatus(
+      "Berjalan",
+      "Diproses",
+      "Bekerja",
+      "Worker sedang memproses tugas.<br>" +
+      `ID tugas: ${taskId}<br>` +
+      "Status: Processing..."
+    );
+
+    updateProgress();
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 2000)
+    );
+
+    const result = {
+      success: true,
+      message: "Video uji berhasil diproses",
+      processedAt:
+        new Date().toISOString()
+    };
+
+    completeTask(
+      taskId,
+      result
+    );
+
+    updateStatus(
+      "Berjalan",
+      "Selesai",
+      "Bekerja",
+      "Tugas video berhasil diselesaikan.<br>" +
+      `ID tugas: ${taskId}<br>` +
+      "Status: Completed."
+    );
+
+    updateProgress();
+
+  } catch (error) {
+
+    failTask(
+      taskId,
+      error
+    );
+
+    updateStatus(
+      "Berjalan",
+      "Gagal",
+      "Bekerja",
+      "Tugas video gagal diproses.<br>" +
+      `ID tugas: ${taskId}<br>` +
+      `Error: ${error.message}`
+    );
+
+    updateProgress();
+  }
+}
+
+if (app.deviceMode) {
+  updateModeUI(
+    app.deviceMode
+  );
+}
+
+updateProgress();
