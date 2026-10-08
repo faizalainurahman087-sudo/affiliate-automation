@@ -56,9 +56,7 @@ function updateModeUI(mode) {
   }
 
   if (mode === "worker") {
-    if (workerBtn) {
-      workerBtn.classList.add("active");
-    }
+    workerBtn?.classList.add("active");
 
     if (deviceMode) {
       deviceMode.textContent = "Worker";
@@ -70,9 +68,7 @@ function updateModeUI(mode) {
   }
 
   if (mode === "monitor") {
-    if (monitorBtn) {
-      monitorBtn.classList.add("active");
-    }
+    monitorBtn?.classList.add("active");
 
     if (deviceMode) {
       deviceMode.classList.add("active");
@@ -128,7 +124,8 @@ function updateProgress() {
 
   const completed =
     queue.filter(
-      task => task.status === "completed"
+      task =>
+        task.status === "completed"
     ).length;
 
   const total =
@@ -165,6 +162,11 @@ function updateProgress() {
   }
 }
 
+
+/* ================================
+   MODE PERANGKAT
+================================ */
+
 window.setMode = function (mode) {
   if (
     mode !== "worker" &&
@@ -192,9 +194,7 @@ window.setMode = function (mode) {
         "Worker aktif.<br>" +
         "Siap menerima antrean video."
       );
-    }
-
-    if (mode === "monitor") {
+    } else {
       updateStatus(
         "Monitor",
         "Menunggu",
@@ -216,6 +216,11 @@ window.setMode = function (mode) {
     );
   }
 };
+
+
+/* ================================
+   MULAI
+================================ */
 
 window.startAutomation = function () {
   if (!isWorkerDevice()) {
@@ -246,6 +251,11 @@ window.startAutomation = function () {
   processPendingTasks();
 };
 
+
+/* ================================
+   JEDA
+================================ */
+
 window.pauseAutomation = function () {
   updateAppState({
     running: false
@@ -263,15 +273,12 @@ window.pauseAutomation = function () {
 };
 
 
-/*
- * ==========================================
- * TUGAS UJI
- * ==========================================
- */
+/* ================================
+   TUGAS UJI
+================================ */
 
 window.createTestTask = function () {
   try {
-
     if (!isWorkerDevice()) {
       updateStatus(
         "Monitor",
@@ -298,7 +305,7 @@ window.createTestTask = function () {
     updateProgress();
 
     console.log(
-      "TUGAS UJI:",
+      "TEST TASK:",
       task
     );
 
@@ -307,7 +314,6 @@ window.createTestTask = function () {
     }
 
   } catch (error) {
-
     updateStatus(
       "Error",
       "Gagal",
@@ -324,28 +330,12 @@ window.createTestTask = function () {
 };
 
 
-/*
- * ==========================================
- * TEST TELEGRAM
- *
- * Simulasi:
- *
- * Hari ini
- * Video 1
- * Video 2
- * .
- * Akun 2
- * Video 3
- *
- * Hasil:
- * Akun 1 = 2 video
- * Akun 2 = 1 video
- * ==========================================
- */
+/* ================================
+   TEST TELEGRAM SEBENARNYA
+================================ */
 
 window.createTelegramTest = function () {
   try {
-
     if (!isWorkerDevice()) {
       updateStatus(
         "Monitor",
@@ -358,53 +348,79 @@ window.createTelegramTest = function () {
     }
 
     /*
-     * Untuk tahap test ini kita menggunakan
-     * task engine yang sudah terbukti bekerja.
+     * Membuat pesan Telegram simulasi:
+     *
+     * Hari ini
+     * Video 1
+     * Video 2
+     * .
+     * Akun 2
+     * Video 3
      */
 
-    const task1 =
-      createTestVideoTask();
+    const messages =
+      createTelegramTestTasks();
 
-    const task2 =
-      createTestVideoTask();
+    /*
+     * Parser Telegram membaca struktur
+     * dan menentukan akun masing-masing.
+     */
 
-    const task3 =
-      createTestVideoTask();
+    const tasks =
+      createTelegramTasks(messages);
+
+    const account1 =
+      tasks.filter(
+        task =>
+          task.account === 1
+      );
+
+    const account2 =
+      tasks.filter(
+        task =>
+          task.account === 2
+      );
+
+    let log =
+      "✓ TELEGRAM PARSER BERHASIL.<br><br>" +
+
+      `Total tugas: ${tasks.length}<br>` +
+
+      `Akun 1: ${account1.length} video<br>` +
+
+      `Akun 2: ${account2.length} video<br><br>`;
+
+    tasks.forEach(
+      (task, index) => {
+
+        log +=
+          `${index + 1}. ` +
+
+          `Akun ${task.account}<br>` +
+
+          `${task.title}<br>` +
+
+          `ID: ${task.id}<br><br>`;
+      }
+    );
 
     updateStatus(
       "Telegram Test",
       "Tugas masuk",
       "Bekerja",
-
-      "✓ TEST TELEGRAM BERHASIL.<br><br>" +
-
-      "AKUN 1<br>" +
-      "Video 1<br>" +
-      `ID: ${task1.id}<br><br>` +
-
-      "AKUN 1<br>" +
-      "Video 2<br>" +
-      `ID: ${task2.id}<br><br>` +
-
-      "AKUN 2<br>" +
-      "Video 1<br>" +
-      `ID: ${task3.id}`
+      log
     );
 
     updateProgress();
 
     console.log(
-      "TELEGRAM TEST:",
-      {
-        account1: [
-          task1,
-          task2
-        ],
+      "TELEGRAM MESSAGES:",
+      messages
+    );
 
-        account2: [
-          task3
-        ]
-      }
+    console.log(
+      "TELEGRAM TASKS:",
+      tasks
     );
 
   } catch (error) {
@@ -414,23 +430,21 @@ window.createTelegramTest = function () {
       "Gagal",
       "Gagal",
 
-      "TEST TELEGRAM ERROR:<br>" +
+      "TELEGRAM PARSER ERROR:<br>" +
       error.message
     );
 
     console.error(
-      "TEST TELEGRAM ERROR:",
+      "TELEGRAM PARSER ERROR:",
       error
     );
   }
 };
 
 
-/*
- * ==========================================
- * PROCESS QUEUE
- * ==========================================
- */
+/* ================================
+   PROCESS ANTREAN
+================================ */
 
 async function processPendingTasks() {
 
@@ -443,7 +457,9 @@ async function processPendingTasks() {
         task.status === "pending"
     );
 
-  for (const task of pendingTasks) {
+  for (
+    const task of pendingTasks
+  ) {
 
     if (!isWorkerDevice()) {
       return;
@@ -459,6 +475,10 @@ async function processPendingTasks() {
   }
 }
 
+
+/* ================================
+   PROCESS SATU TASK
+================================ */
 
 async function processTask(taskId) {
 
@@ -482,9 +502,7 @@ async function processTask(taskId) {
 
   try {
 
-    startTask(
-      taskId
-    );
+    startTask(taskId);
 
     updateStatus(
       "Berjalan",
@@ -492,7 +510,11 @@ async function processTask(taskId) {
       "Bekerja",
 
       "Worker sedang memproses tugas.<br>" +
+
       `ID tugas: ${taskId}<br>` +
+
+      `Akun: ${task.account || "-"}<br>` +
+
       "Status: Processing..."
     );
 
@@ -510,7 +532,10 @@ async function processTask(taskId) {
       success: true,
 
       message:
-        "Video uji berhasil diproses",
+        "Video berhasil diproses",
+
+      account:
+        task.account || null,
 
       processedAt:
         new Date().toISOString()
@@ -527,7 +552,11 @@ async function processTask(taskId) {
       "Bekerja",
 
       "Tugas video berhasil diselesaikan.<br>" +
+
       `ID tugas: ${taskId}<br>` +
+
+      `Akun: ${task.account || "-"}<br>` +
+
       "Status: Completed."
     );
 
@@ -546,7 +575,9 @@ async function processTask(taskId) {
       "Bekerja",
 
       "Tugas video gagal diproses.<br>" +
+
       `ID tugas: ${taskId}<br>` +
+
       `Error: ${error.message}`
     );
 
@@ -555,11 +586,9 @@ async function processTask(taskId) {
 }
 
 
-/*
- * ==========================================
- * INITIALIZATION
- * ==========================================
- */
+/* ================================
+   START APP
+================================ */
 
 if (app.deviceMode) {
   updateModeUI(
