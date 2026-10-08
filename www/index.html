@@ -4,9 +4,438 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Affiliate Automation</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #080b12;
+      color: #ffffff;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 520px;
+      margin: auto;
+      padding: 22px 16px 40px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: #8fffa8;
+      background: #102317;
+      padding: 8px 11px;
+      border-radius: 20px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #35e76f;
+    }
+
+    .hero {
+      background: linear-gradient(145deg, #151b29, #0d111a);
+      border: 1px solid #252d3d;
+      border-radius: 22px;
+      padding: 22px;
+      margin-bottom: 15px;
+    }
+
+    .hero small {
+      color: #8994a8;
+      font-size: 12px;
+    }
+
+    .hero h1 {
+      font-size: 27px;
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    .hero p {
+      color: #929caf;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #111621;
+      border: 1px solid #222a39;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 13px;
+    }
+
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-title h2 {
+      font-size: 16px;
+    }
+
+    .badge {
+      background: #20293a;
+      color: #aeb8ca;
+      padding: 6px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      color: #aab4c5;
+      font-size: 13px;
+      margin-bottom: 9px;
+    }
+
+    .progress {
+      width: 100%;
+      height: 9px;
+      background: #252c39;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #ffffff;
+      border-radius: 20px;
+      transition: width 0.3s;
+    }
+
+    .setting {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 13px 0;
+      border-bottom: 1px solid #202735;
+    }
+
+    .setting:last-child {
+      border-bottom: none;
+    }
+
+    .setting span:first-child {
+      color: #aab4c5;
+      font-size: 14px;
+    }
+
+    .value {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .green {
+      color: #76f596;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 15px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .start {
+      background: #ffffff;
+      color: #080b12;
+    }
+
+    .pause {
+      background: #202735;
+      color: #ffffff;
+    }
+
+    .log {
+      color: #8f99aa;
+      font-size: 13px;
+      line-height: 1.7;
+      min-height: 45px;
+    }
+
+    .mode {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mode button {
+      background: #171e2b;
+      color: #aeb8ca;
+      border: 1px solid #283142;
+    }
+
+    .mode button.active {
+      background: #ffffff;
+      color: #080b12;
+    }
+
+    .footer {
+      text-align: center;
+      color: #555f70;
+      font-size: 11px;
+      margin-top: 24px;
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Affiliate Automation</h1>
-  <p>Worker & Monitor siap dikembangkan.</p>
+
+  <main class="app">
+
+    <header class="header">
+      <div class="logo">Affiliate Automation</div>
+
+      <div class="status" id="status">
+        <span class="dot"></span>
+        Siap
+      </div>
+    </header>
+
+    <section class="hero">
+      <small id="modeText">WORKER MODE</small>
+      <h1>Automation Center</h1>
+      <p>
+        Kelola antrean video affiliate, produk, komisi,
+        dan proses kerja dari satu tempat.
+      </p>
+    </section>
+
+    <section class="card">
+
+      <div class="card-title">
+        <h2>Mode Perangkat</h2>
+        <span class="badge" id="deviceMode">Worker</span>
+      </div>
+
+      <div class="mode">
+        <button class="active" id="workerBtn" onclick="setMode('worker')">
+          Worker
+        </button>
+
+        <button id="monitorBtn" onclick="setMode('monitor')">
+          Monitor
+        </button>
+      </div>
+
+    </section>
+
+    <section class="card">
+
+      <div class="card-title">
+        <h2>Progress Video</h2>
+        <span class="badge" id="videoStatus">Menunggu</span>
+      </div>
+
+      <div class="progress-info">
+        <span>Video akun aktif</span>
+        <strong id="videoCount">0 / 10</strong>
+      </div>
+
+      <div class="progress">
+        <div class="progress-bar" id="videoProgress"></div>
+      </div>
+
+    </section>
+
+    <section class="card">
+
+      <div class="card-title">
+        <h2>Aturan Affiliate</h2>
+        <span class="badge">Aktif</span>
+      </div>
+
+      <div class="setting">
+        <span>Produk per video</span>
+        <span class="value">6</span>
+      </div>
+
+      <div class="setting">
+        <span>Komisi minimum</span>
+        <span class="value green">9%</span>
+      </div>
+
+      <div class="setting">
+        <span>Maksimum video / akun</span>
+        <span class="value">10</span>
+      </div>
+
+      <div class="setting">
+        <span>Caption & hashtag</span>
+        <span class="value green">Otomatis</span>
+      </div>
+
+    </section>
+
+    <section class="card">
+
+      <div class="card-title">
+        <h2>Akun Shopee</h2>
+        <span class="badge" id="accountBadge">Akun 1</span>
+      </div>
+
+      <div class="setting">
+        <span>Status akun</span>
+        <span class="value green" id="accountStatus">Siap</span>
+      </div>
+
+      <div class="setting">
+        <span>Video selesai</span>
+        <span class="value" id="accountVideo">0 / 10</span>
+      </div>
+
+    </section>
+
+    <section class="card">
+
+      <div class="card-title">
+        <h2>Aktivitas</h2>
+      </div>
+
+      <div class="log" id="log">
+        Sistem siap digunakan.<br>
+        Belum ada video yang diproses.
+      </div>
+
+      <div class="buttons">
+
+        <button class="start" onclick="startAutomation()">
+          ▶ MULAI
+        </button>
+
+        <button class="pause" onclick="pauseAutomation()">
+          ⏸ JEDA
+        </button>
+
+      </div>
+
+    </section>
+
+    <div class="footer">
+      Affiliate Automation • Worker & Monitor
+    </div>
+
+  </main>
+
+  <script>
+
+    let mode = "worker";
+    let running = false;
+    let videoCount = 0;
+
+    function setMode(selectedMode) {
+
+      mode = selectedMode;
+
+      const workerBtn = document.getElementById("workerBtn");
+      const monitorBtn = document.getElementById("monitorBtn");
+
+      workerBtn.classList.remove("active");
+      monitorBtn.classList.remove("active");
+
+      if (mode === "worker") {
+
+        workerBtn.classList.add("active");
+
+        document.getElementById("deviceMode").textContent = "Worker";
+        document.getElementById("modeText").textContent = "WORKER MODE";
+
+      } else {
+
+        monitorBtn.classList.add("active");
+
+        document.getElementById("deviceMode").textContent = "Monitor";
+        document.getElementById("modeText").textContent = "MONITOR MODE";
+
+      }
+
+    }
+
+    function startAutomation() {
+
+      if (mode !== "worker") {
+
+        document.getElementById("log").innerHTML =
+          "Monitor aktif.<br>Menunggu Worker terhubung.";
+
+        return;
+      }
+
+      running = true;
+
+      document.getElementById("status").innerHTML =
+        '<span class="dot"></span> Berjalan';
+
+      document.getElementById("videoStatus").textContent =
+        "Berjalan";
+
+      document.getElementById("accountStatus").textContent =
+        "Bekerja";
+
+      document.getElementById("log").innerHTML =
+        "Worker dimulai.<br>" +
+        "Menunggu antrean video.";
+
+    }
+
+    function pauseAutomation() {
+
+      running = false;
+
+      document.getElementById("status").innerHTML =
+        '<span class="dot"></span> Dijeda';
+
+      document.getElementById("videoStatus").textContent =
+        "Dijeda";
+
+      document.getElementById("accountStatus").textContent =
+        "Dijeda";
+
+      document.getElementById("log").innerHTML =
+        "Automation dijeda.<br>" +
+        "Tidak ada proses baru yang dijalankan.";
+
+    }
+
+  </script>
+
 </body>
-</html>
+  </html>
