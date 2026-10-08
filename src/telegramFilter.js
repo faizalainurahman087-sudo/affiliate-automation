@@ -1,69 +1,116 @@
-const MAX_VIDEO_AGE_DAYS = 7;
+const MAX_VIDEOS_PER_ACCOUNT = 10;
 
-export function isValidTelegramVideo(video) {
-  if (!video) {
-    return false;
+export function parseTelegramMessages(messages = []) {
+  const groups = [];
+
+  let currentAccount = null;
+  let currentVideos = [];
+
+  for (const message of messages) {
+    const text =
+      typeof message.text === "string"
+        ? message.text.trim()
+        : "";
+
+    /*
+     * "Hari ini" memulai kelompok pertama.
+     * Kelompok pertama dianggap sebagai Akun 1.
+     */
+    if (/^hari\s+ini$/i.test(text)) {
+      if (currentAccount !== null) {
+        groups.push({
+          account: currentAccount,
+          videos: currentVideos
+        });
+      }
+
+      currentAccount = 1;
+      currentVideos = [];
+      continue;
+    }
+
+    /*
+     * "Akun 2", "Akun 3", dan seterusnya
+     * langsung mengganti tujuan ke akun tersebut.
+     */
+    const accountMatch =
+      text.match(/^akun\s+(\d+)$/i);
+
+    if (accountMatch) {
+      if (currentAccount !== null) {
+        groups.push({
+          account: currentAccount,
+          videos: currentVideos
+        });
+      }
+
+      currentAccount =
+        Number(accountMatch[1]);
+
+      currentVideos = [];
+      continue;
+    }
+
+    /*
+     * Titik "." hanya dianggap sebagai
+     * pemisah dan tidak menjadi video.
+     */
+    if (text === ".") {
+      continue;
+    }
+
+    /*
+     * Hanya video yang dimasukkan.
+     * Maksimal 10 video per akun.
+     */
+    if (
+      message.type === "video" &&
+      currentAccount !== null &&
+      currentVideos.length < MAX_VIDEOS_PER_ACCOUNT
+    ) {
+      currentVideos.push({
+        ...message,
+        account: currentAccount
+      });
+    }
   }
 
-  if (video.type !== "video") {
-    return false;
+  /*
+   * Simpan kelompok terakhir.
+   */
+  if (currentAccount !== null) {
+    groups.push({
+      account: currentAccount,
+      videos: currentVideos
+    });
   }
 
-  if (!video.date) {
-    return false;
-  }
-
-  const videoDate =
-    new Date(video.date);
-
-  if (Number.isNaN(videoDate.getTime())) {
-    return false;
-  }
-
-  const now = new Date();
-
-  const ageMilliseconds =
-    now.getTime() -
-    videoDate.getTime();
-
-  const ageDays =
-    ageMilliseconds /
-    (1000 * 60 * 60 * 24);
-
-  if (ageDays < 0) {
-    return false;
-  }
-
-  if (ageDays > MAX_VIDEO_AGE_DAYS) {
-    return false;
-  }
-
-  return true;
+  return groups;
 }
 
-export function filterTelegramVideos(videos = []) {
-  return videos.filter(
-    video => isValidTelegramVideo(video)
-  );
+export function getVideosForAccount(
+  messages = [],
+  accountNumber
+) {
+  const groups =
+    parseTelegramMessages(messages);
+
+  const group =
+    groups.find(
+      item => item.account === accountNumber
+    );
+
+  return group
+    ? group.videos
+    : [];
 }
 
-export function getVideoAgeDays(video) {
-  if (!video?.date) {
-    return null;
-  }
+export function getAccountGroups(
+  messages = []
+) {
+  return parseTelegramMessages(messages);
+}
 
-  const videoDate =
-    new Date(video.date);
-
-  if (Number.isNaN(videoDate.getTime())) {
-    return null;
-  }
-
-  const now = new Date();
-
-  return (
-    (now.getTime() -
-      videoDate.getTime()) /
-    (1000 * 60 * 60 * 24)
-  );
+export function getMaxVideosPerAccount() {
+  return MAX_VIDEOS_PER_ACCOUNT;
 }
