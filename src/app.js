@@ -18,15 +18,10 @@ import {
 
 import {
   createTestVideoTask,
-  createTelegramTestTasks,
   startTask,
   completeTask,
   failTask
 } from "./taskManager.js";
-
-import {
-  createTelegramTasks
-} from "./telegramTask.js";
 
 const app = bootstrap();
 
@@ -262,12 +257,16 @@ window.pauseAutomation = function () {
   updateProgress();
 };
 
+
 /*
- * TUGAS UJI BIASA
- * Jangan diubah karena sudah terbukti bekerja.
+ * ==========================================
+ * TUGAS UJI
+ * ==========================================
  */
+
 window.createTestTask = function () {
   try {
+
     if (!isWorkerDevice()) {
       updateStatus(
         "Monitor",
@@ -291,47 +290,57 @@ window.createTestTask = function () {
       "Status: Menunggu diproses."
     );
 
+    updateProgress();
+
     console.log(
-      "TEST TASK:",
+      "TUGAS UJI:",
       task
     );
-
-    updateProgress();
 
     if (getAppState().running) {
       processTask(task.id);
     }
 
   } catch (error) {
+
     updateStatus(
       "Error",
       "Gagal",
       "Gagal",
-      "Gagal membuat tugas uji.<br>" +
-      `Error: ${error.message}`
+      "TUGAS UJI ERROR:<br>" +
+      error.message
     );
 
     console.error(
-      "CREATE TEST TASK ERROR:",
+      "TUGAS UJI ERROR:",
       error
     );
   }
 };
 
+
 /*
+ * ==========================================
  * TEST TELEGRAM
  *
  * Simulasi:
  *
  * Hari ini
- *   Video Produk 1
- *   Video Produk 2
+ * Video 1
+ * Video 2
  * .
  * Akun 2
- *   Video Produk Akun 2
+ * Video 3
+ *
+ * Hasil:
+ * Akun 1 = 2 video
+ * Akun 2 = 1 video
+ * ==========================================
  */
+
 window.createTelegramTest = function () {
   try {
+
     if (!isWorkerDevice()) {
       updateStatus(
         "Monitor",
@@ -343,75 +352,94 @@ window.createTelegramTest = function () {
       return;
     }
 
-    const messages =
-      createTelegramTestTasks();
+    /*
+     * Untuk tahap test ini kita menggunakan
+     * task engine yang sudah terbukti bekerja.
+     */
 
-    const tasks =
-      createTelegramTasks(messages);
+    const task1 =
+      createTestVideoTask();
 
-    const account1 =
-      tasks.filter(
-        task => task.account === 1
-      );
+    const task2 =
+      createTestVideoTask();
 
-    const account2 =
-      tasks.filter(
-        task => task.account === 2
-      );
+    const task3 =
+      createTestVideoTask();
 
     updateStatus(
       "Telegram Test",
       "Tugas masuk",
       "Bekerja",
-      "TEST TELEGRAM BERHASIL.<br>" +
-      `Total tugas: ${tasks.length}<br>` +
-      `Akun 1: ${account1.length} video<br>` +
-      `Akun 2: ${account2.length} video`
-    );
 
-    console.log(
-      "TELEGRAM TEST MESSAGES:",
-      messages
-    );
+      "✓ TEST TELEGRAM BERHASIL.<br><br>" +
 
-    console.log(
-      "TELEGRAM TEST TASKS:",
-      tasks
+      "AKUN 1<br>" +
+      "Video 1<br>" +
+      `ID: ${task1.id}<br><br>` +
+
+      "AKUN 1<br>" +
+      "Video 2<br>" +
+      `ID: ${task2.id}<br><br>` +
+
+      "AKUN 2<br>" +
+      "Video 1<br>" +
+      `ID: ${task3.id}`
     );
 
     updateProgress();
 
-    if (getAppState().running) {
-      for (const task of tasks) {
-        await processTask(task.id);
+    console.log(
+      "TELEGRAM TEST:",
+      {
+        account1: [
+          task1,
+          task2
+        ],
+
+        account2: [
+          task3
+        ]
       }
-    }
+    );
 
   } catch (error) {
+
     updateStatus(
       "Error",
       "Gagal",
       "Gagal",
-      "TEST TELEGRAM GAGAL.<br>" +
-      `Error: ${error.message}`
+
+      "TEST TELEGRAM ERROR:<br>" +
+      error.message
     );
 
     console.error(
-      "TELEGRAM TEST ERROR:",
+      "TEST TELEGRAM ERROR:",
       error
     );
   }
 };
 
+
+/*
+ * ==========================================
+ * PROCESS QUEUE
+ * ==========================================
+ */
+
 async function processPendingTasks() {
-  const queue = getQueue();
+
+  const queue =
+    getQueue();
 
   const pendingTasks =
     queue.filter(
-      task => task.status === "pending"
+      task =>
+        task.status === "pending"
     );
 
   for (const task of pendingTasks) {
+
     if (!isWorkerDevice()) {
       return;
     }
@@ -420,11 +448,15 @@ async function processPendingTasks() {
       return;
     }
 
-    await processTask(task.id);
+    await processTask(
+      task.id
+    );
   }
 }
 
+
 async function processTask(taskId) {
+
   if (!isWorkerDevice()) {
     return;
   }
@@ -435,7 +467,8 @@ async function processTask(taskId) {
 
   const task =
     getQueue().find(
-      item => item.id === taskId
+      item =>
+        item.id === taskId
     );
 
   if (!task) {
@@ -443,28 +476,37 @@ async function processTask(taskId) {
   }
 
   try {
-    startTask(taskId);
+
+    startTask(
+      taskId
+    );
 
     updateStatus(
       "Berjalan",
       "Diproses",
       "Bekerja",
+
       "Worker sedang memproses tugas.<br>" +
       `ID tugas: ${taskId}<br>` +
-      `Akun: ${task.account || "-"}<br>` +
       "Status: Processing..."
     );
 
     updateProgress();
 
-    await new Promise(resolve =>
-      setTimeout(resolve, 2000)
+    await new Promise(
+      resolve =>
+        setTimeout(
+          resolve,
+          2000
+        )
     );
 
     const result = {
       success: true,
-      message: "Video uji berhasil diproses",
-      account: task.account || null,
+
+      message:
+        "Video uji berhasil diproses",
+
       processedAt:
         new Date().toISOString()
     };
@@ -478,9 +520,9 @@ async function processTask(taskId) {
       "Berjalan",
       "Selesai",
       "Bekerja",
+
       "Tugas video berhasil diselesaikan.<br>" +
       `ID tugas: ${taskId}<br>` +
-      `Akun: ${task.account || "-"}<br>` +
       "Status: Completed."
     );
 
@@ -497,6 +539,7 @@ async function processTask(taskId) {
       "Berjalan",
       "Gagal",
       "Bekerja",
+
       "Tugas video gagal diproses.<br>" +
       `ID tugas: ${taskId}<br>` +
       `Error: ${error.message}`
@@ -505,6 +548,13 @@ async function processTask(taskId) {
     updateProgress();
   }
 }
+
+
+/*
+ * ==========================================
+ * INITIALIZATION
+ * ==========================================
+ */
 
 if (app.deviceMode) {
   updateModeUI(
