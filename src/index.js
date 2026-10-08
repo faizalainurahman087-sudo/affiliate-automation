@@ -10,3 +10,4 @@ export * from "./worker.js";
 export * from "./monitor.js";
 export * from "./roles.js";
 export * from "./taskStatus.js";
+export * from "./taskManager.js";
