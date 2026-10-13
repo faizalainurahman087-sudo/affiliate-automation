@@ -1,4 +1,3 @@
-
 import { bootstrap } from "./bootstrap.js";
 import {
   setDeviceRole,
@@ -11,12 +10,10 @@ import {
 import { getQueue } from "./taskQueue.js";
 import {
   createTestVideoTask,
-  createTelegramTestTasks,
   startTask,
   completeTask,
   failTask
 } from "./taskManager.js";
-import { createTelegramTasks } from "./telegramTask.js";
 import {
   saveTelegramConfig,
   getTelegramStatus,
@@ -53,12 +50,13 @@ function updateModeUI(mode) {
   if (modeText) {
     modeText.textContent =
       mode === "worker" ? "WORKER MODE" :
-      mode === "monitor" ? "MONITOR MODE" : "PILIH MODE";
+      mode === "monitor" ? "MONITOR MODE" :
+      "PILIH MODE";
   }
 }
 
 /* ================================
-   STATUS DAN LOG
+   STATUS APLIKASI
 ================================ */
 
 function updateStatus(status, videoStatus, accountStatus, logText) {
@@ -80,13 +78,12 @@ function updateStatus(status, videoStatus, accountStatus, logText) {
   }
 
   if (log) {
-    // Log dibuat sebagai teks agar pesan tidak ditafsirkan sebagai HTML.
-    log.textContent = logText.replace(/<br\s*\/?>/gi, "\n");
+    log.textContent = logText;
   }
 }
 
 /* ================================
-   PROGRES ANTREAN
+   PROGRES
 ================================ */
 
 function updateProgress() {
@@ -96,14 +93,12 @@ function updateProgress() {
     task => task.status === "completed"
   ).length;
 
-  const total = queue.length;
-
   const videoCount = document.getElementById("videoCount");
   const videoProgress = document.getElementById("videoProgress");
   const accountVideo = document.getElementById("accountVideo");
 
   if (videoCount) {
-    videoCount.textContent = `${completed} / ${total}`;
+    videoCount.textContent = `${completed} / ${queue.length}`;
   }
 
   if (accountVideo) {
@@ -112,8 +107,8 @@ function updateProgress() {
   }
 
   if (videoProgress) {
-    const percent = total > 0
-      ? Math.min((completed / total) * 100, 100)
+    const percent = queue.length
+      ? Math.min((completed / queue.length) * 100, 100)
       : 0;
 
     videoProgress.style.width = `${percent}%`;
@@ -121,26 +116,23 @@ function updateProgress() {
 }
 
 /* ================================
-   PILIH MODE
+   MODE WORKER / MONITOR
 ================================ */
 
 window.setMode = function (mode) {
-  if (mode !== "worker" && mode !== "monitor") {
+  if (mode !== "worker" && mode !== "monitor") return;
+
+  if (processingQueue) {
+    updateStatus(
+      "Sedang bekerja",
+      "Diproses",
+      "Manual",
+      "Tunggu sampai tugas saat ini selesai sebelum mengganti mode."
+    );
     return;
   }
 
   try {
-    // Jangan mengganti mode ketika tugas sedang diproses.
-    if (processingQueue) {
-      updateStatus(
-        "Sedang bekerja",
-        "Diproses",
-        "Menunggu",
-        "Tunggu sampai proses saat ini berhenti sebelum mengganti mode."
-      );
-      return;
-    }
-
     setDeviceRole(mode);
 
     updateAppState({
@@ -152,28 +144,21 @@ window.setMode = function (mode) {
     updateModeUI(mode);
     updateProgress();
 
-    if (mode === "worker") {
-      updateStatus(
-        "Siap",
-        "Menunggu",
-        "Manual",
-        "Worker aktif.\nSiap memproses antrean video."
-      );
-    } else {
-      updateStatus(
-        "Monitor",
-        "Menunggu",
-        "Manual",
-        "Monitor aktif.\nPemrosesan video dilakukan di Worker."
-      );
-    }
+    updateStatus(
+      mode === "worker" ? "Siap" : "Monitor",
+      "Menunggu",
+      "Manual",
+      mode === "worker"
+        ? "Worker aktif.\nSiap menerima tugas video."
+        : "Monitor aktif.\nPergantian akun Shopee dilakukan secara manual."
+    );
   } catch (error) {
     updateStatus("Error", "Gagal", "Manual", error.message);
   }
 };
 
 /* ================================
-   MULAI SESI
+   MULAI
 ================================ */
 
 window.startAutomation = function () {
@@ -182,7 +167,7 @@ window.startAutomation = function () {
       "Monitor",
       "Menunggu",
       "Manual",
-      "Pilih Worker Mode pada perangkat yang memproses video."
+      "Pilih Worker Mode pada perangkat pemroses."
     );
     return;
   }
@@ -198,14 +183,13 @@ window.startAutomation = function () {
   }
 
   sessionProcessed = 0;
-
   updateAppState({ running: true });
 
   updateStatus(
     "Berjalan",
-    "Menunggu",
+    "Memulai",
     "Manual",
-    "Sesi dimulai.\nBatas sesi: maksimal 10 video berhasil diproses."
+    "Sesi dimulai.\nMaksimal 10 video berhasil diproses.\nTidak ada pergantian akun otomatis."
   );
 
   updateProgress();
@@ -223,7 +207,7 @@ window.pauseAutomation = function () {
     "Dijeda",
     "Dijeda",
     "Manual",
-    "Sesi dijeda. Tugas yang belum diproses tetap berada dalam antrean."
+    "Sesi dijeda.\nTugas yang belum dimulai tetap menunggu."
   );
 
   updateProgress();
@@ -251,7 +235,7 @@ window.createTestTask = function () {
       "Tugas dibuat",
       "Menunggu",
       "Manual",
-      `Tugas uji berhasil dibuat.\nID: ${task.id}\nStatus: Menunggu`
+      `Tugas uji berhasil dibuat.\nID tugas: ${task.id}\nStatus: Menunggu`
     );
 
     updateProgress();
@@ -265,7 +249,8 @@ window.createTestTask = function () {
 };
 
 /* ================================
-   UJI PARSER TELEGRAM
+   TEST VIDEO
+   TANPA PEMBAGIAN AKUN
 ================================ */
 
 window.createTelegramTest = function () {
@@ -280,26 +265,31 @@ window.createTelegramTest = function () {
   }
 
   try {
-    // Pesan simulasi untuk satu sesi, tanpa pergantian akun.
-    const messages = createTelegramTestTasks();
-    const tasks = createTelegramTasks(messages);
+    // Membuat 3 tugas video uji biasa.
+    // Tidak ada parser Akun 1 / Akun 2.
+    const tasks = [];
 
-    let log = `Uji parser selesai.\nTotal tugas dibuat: ${tasks.length}\n\n`;
+    for (let i = 0; i < 3; i++) {
+      tasks.push(createTestVideoTask());
+    }
+
+    let log = `Uji tugas selesai.\nTotal tugas uji: ${tasks.length}\n\n`;
 
     tasks.forEach((task, index) => {
-      log += `${index + 1}. ${task.title}\nID: ${task.id}\n\n`;
+      log += `Video uji ${index + 1}\n`;
+      log += `ID: ${task.id}\n`;
+      log += "Status: Menunggu\n\n";
     });
 
     updateStatus(
-      "Uji parser",
-      "Tugas masuk",
+      "Uji tugas",
+      "Tugas dibuat",
       "Manual",
       log
     );
 
     updateProgress();
-
-    console.log("TELEGRAM TEST TASKS:", tasks);
+    console.log("VIDEO TEST TASKS:", tasks);
   } catch (error) {
     updateStatus("Error", "Gagal", "Manual", error.message);
   }
@@ -310,9 +300,7 @@ window.createTelegramTest = function () {
 ================================ */
 
 async function processPendingTasks() {
-  if (processingQueue || !isWorkerDevice()) {
-    return;
-  }
+  if (processingQueue || !isWorkerDevice()) return;
 
   processingQueue = true;
 
@@ -333,9 +321,8 @@ async function processPendingTasks() {
           "Antrean habis",
           "Menunggu",
           "Manual",
-          `Tidak ada tugas tersisa.\nVideo berhasil diproses pada sesi ini: ${sessionProcessed}.`
+          `Tidak ada tugas tersisa.\nVideo berhasil pada sesi ini: ${sessionProcessed}.`
         );
-
         break;
       }
 
@@ -347,23 +334,14 @@ async function processPendingTasks() {
       }
     }
 
-    if (
-      sessionProcessed >= MAX_VIDEOS_PER_SESSION
-    ) {
+    if (sessionProcessed >= MAX_VIDEOS_PER_SESSION) {
       updateAppState({ running: false });
 
       updateStatus(
         "Sesi selesai",
         "Berhenti otomatis",
         "Ganti manual",
-        "Batas 10 video tercapai.\nAplikasi berhenti otomatis.\nSilakan ganti akun Shopee secara manual, lalu tekan MULAI untuk sesi berikutnya."
-      );
-    } else if (!getAppState().running) {
-      updateStatus(
-        "Dijeda",
-        "Menunggu",
-        "Manual",
-        `Sesi berhenti.\nVideo berhasil diproses: ${sessionProcessed}.\nTekan MULAI untuk memulai sesi baru.`
+        "Batas 10 video tercapai.\nAplikasi berhenti otomatis.\nGanti akun Shopee sendiri, lalu tekan MULAI untuk sesi berikutnya."
       );
     }
   } catch (error) {
@@ -373,7 +351,7 @@ async function processPendingTasks() {
       "Error",
       "Gagal",
       "Manual",
-      `Proses antrean mengalami kesalahan.\n${error.message}`
+      `Terjadi kesalahan:\n${error.message}`
     );
   } finally {
     processingQueue = false;
@@ -405,21 +383,17 @@ async function processTask(taskId) {
       "Berjalan",
       "Diproses",
       "Manual",
-      `Memproses tugas.\nID: ${taskId}\nVideo sesi ini: ${sessionProcessed} / ${MAX_VIDEOS_PER_SESSION}`
+      `Memproses tugas uji.\nID: ${taskId}\nProgres sesi: ${sessionProcessed}/${MAX_VIDEOS_PER_SESSION}`
     );
 
     updateProgress();
 
-    // Simulasi pemrosesan yang digunakan versi saat ini.
+    // Simulasi saat ini, bukan pemrosesan video asli.
     await new Promise(resolve => setTimeout(resolve, 2000));
-
-    if (!getAppState().running || !isWorkerDevice()) {
-      return false;
-    }
 
     completeTask(taskId, {
       success: true,
-      message: "Simulasi pemrosesan selesai",
+      message: "Simulasi selesai",
       processedAt: new Date().toISOString()
     });
 
@@ -432,7 +406,7 @@ async function processTask(taskId) {
       "Tugas gagal",
       "Gagal",
       "Manual",
-      `Tugas gagal diproses.\nID: ${taskId}\n${error.message}`
+      `ID tugas: ${taskId}\nError: ${error.message}`
     );
 
     updateProgress();
@@ -441,26 +415,23 @@ async function processTask(taskId) {
 }
 
 /* ================================
-   STATUS KONEKSI TELEGRAM
+   TELEGRAM
 ================================ */
 
 window.connectTelegram = function () {
-  // Tidak mengaku terhubung sebelum backend Telegram aktif.
   saveTelegramConfig({
     connected: false,
     configured: false
   });
 
-  const status = getTelegramStatus();
+  getTelegramStatus();
 
   updateStatus(
     "Belum terhubung",
     "Backend diperlukan",
     "Manual",
-    "Koneksi Telegram asli belum aktif.\nBot dan backend harus dikonfigurasi terlebih dahulu."
+    "Telegram belum terhubung secara nyata.\nBackend dan bot perlu dikonfigurasi terlebih dahulu."
   );
-
-  console.log("TELEGRAM STATUS:", status);
 };
 
 window.disconnectTelegram = function () {
@@ -483,4 +454,4 @@ if (app.deviceMode) {
 }
 
 updateProgress();
-  
+      
