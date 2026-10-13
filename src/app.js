@@ -1,27 +1,14 @@
-import {
-  bootstrap
-} from "./bootstrap.js";
 
-import {
-  saveTelegramConfig,
-  getTelegramStatus,
-  disconnectTelegram
-} from "./telegram.js";
-
+import { bootstrap } from "./bootstrap.js";
 import {
   setDeviceRole,
   isWorkerDevice
 } from "./deviceController.js";
-
 import {
   getAppState,
   updateAppState
 } from "./state.js";
-
-import {
-  getQueue
-} from "./taskQueue.js";
-
+import { getQueue } from "./taskQueue.js";
 import {
   createTestVideoTask,
   createTelegramTestTasks,
@@ -29,159 +16,131 @@ import {
   completeTask,
   failTask
 } from "./taskManager.js";
-
+import { createTelegramTasks } from "./telegramTask.js";
 import {
-  createTelegramTasks
-} from "./telegramTask.js";
+  saveTelegramConfig,
+  getTelegramStatus,
+  disconnectTelegram
+} from "./telegram.js";
 
 const app = bootstrap();
 
-function updateModeUI(mode) {
-  const workerBtn =
-    document.getElementById("workerBtn");
+const MAX_VIDEOS_PER_SESSION = 10;
 
-  const monitorBtn =
-    document.getElementById("monitorBtn");
-
-  const deviceMode =
-    document.getElementById("deviceMode");
-
-  const modeText =
-    document.getElementById("modeText");
-
-  if (workerBtn) {
-    workerBtn.classList.remove("active");
-  }
-
-  if (monitorBtn) {
-    monitorBtn.classList.remove("active");
-  }
-
-  if (deviceMode) {
-    deviceMode.classList.remove("active");
-  }
-
-  if (mode === "worker") {
-    workerBtn?.classList.add("active");
-
-    if (deviceMode) {
-      deviceMode.textContent = "Worker";
-    }
-
-    if (modeText) {
-      modeText.textContent = "WORKER MODE";
-    }
-  }
-
-  if (mode === "monitor") {
-    monitorBtn?.classList.add("active");
-
-    if (deviceMode) {
-      deviceMode.classList.add("active");
-      deviceMode.textContent = "Monitor";
-    }
-
-    if (modeText) {
-      modeText.textContent = "MONITOR MODE";
-    }
-  }
-}
-
-function updateStatus(
-  status,
-  videoStatus,
-  accountStatus,
-  logText
-) {
-  const statusElement =
-    document.getElementById("status");
-
-  const videoStatusElement =
-    document.getElementById("videoStatus");
-
-  const accountStatusElement =
-    document.getElementById("accountStatus");
-
-  const log =
-    document.getElementById("log");
-
-  if (statusElement) {
-    statusElement.innerHTML =
-      `<span class="dot"></span> ${status}`;
-  }
-
-  if (videoStatusElement) {
-    videoStatusElement.textContent =
-      videoStatus;
-  }
-
-  if (accountStatusElement) {
-    accountStatusElement.textContent =
-      accountStatus;
-  }
-
-  if (log) {
-    log.innerHTML = logText;
-  }
-}
-
-function updateProgress() {
-  const queue = getQueue();
-
-  const completed =
-    queue.filter(
-      task =>
-        task.status === "completed"
-    ).length;
-
-  const total =
-    Math.max(queue.length, 10);
-
-  const videoCount =
-    document.getElementById("videoCount");
-
-  const videoProgress =
-    document.getElementById("videoProgress");
-
-  const accountVideo =
-    document.getElementById("accountVideo");
-
-  if (videoCount) {
-    videoCount.textContent =
-      `${completed} / ${total}`;
-  }
-
-  if (accountVideo) {
-    accountVideo.textContent =
-      `${completed} / ${total}`;
-  }
-
-  if (videoProgress) {
-    const percent =
-      Math.min(
-        (completed / total) * 100,
-        100
-      );
-
-    videoProgress.style.width =
-      `${percent}%`;
-  }
-}
-
+let sessionProcessed = 0;
+let processingQueue = false;
 
 /* ================================
    MODE PERANGKAT
 ================================ */
 
+function updateModeUI(mode) {
+  const workerBtn = document.getElementById("workerBtn");
+  const monitorBtn = document.getElementById("monitorBtn");
+  const deviceMode = document.getElementById("deviceMode");
+  const modeText = document.getElementById("modeText");
+
+  workerBtn?.classList.toggle("active", mode === "worker");
+  monitorBtn?.classList.toggle("active", mode === "monitor");
+  deviceMode?.classList.toggle("active", mode === "monitor");
+
+  if (deviceMode) {
+    deviceMode.textContent =
+      mode === "worker" ? "Worker" :
+      mode === "monitor" ? "Monitor" : "-";
+  }
+
+  if (modeText) {
+    modeText.textContent =
+      mode === "worker" ? "WORKER MODE" :
+      mode === "monitor" ? "MONITOR MODE" : "PILIH MODE";
+  }
+}
+
+/* ================================
+   STATUS DAN LOG
+================================ */
+
+function updateStatus(status, videoStatus, accountStatus, logText) {
+  const statusElement = document.getElementById("status");
+  const videoStatusElement = document.getElementById("videoStatus");
+  const accountStatusElement = document.getElementById("accountStatus");
+  const log = document.getElementById("log");
+
+  if (statusElement) {
+    statusElement.textContent = status;
+  }
+
+  if (videoStatusElement) {
+    videoStatusElement.textContent = videoStatus;
+  }
+
+  if (accountStatusElement) {
+    accountStatusElement.textContent = accountStatus;
+  }
+
+  if (log) {
+    // Log dibuat sebagai teks agar pesan tidak ditafsirkan sebagai HTML.
+    log.textContent = logText.replace(/<br\s*\/?>/gi, "\n");
+  }
+}
+
+/* ================================
+   PROGRES ANTREAN
+================================ */
+
+function updateProgress() {
+  const queue = getQueue();
+
+  const completed = queue.filter(
+    task => task.status === "completed"
+  ).length;
+
+  const total = queue.length;
+
+  const videoCount = document.getElementById("videoCount");
+  const videoProgress = document.getElementById("videoProgress");
+  const accountVideo = document.getElementById("accountVideo");
+
+  if (videoCount) {
+    videoCount.textContent = `${completed} / ${total}`;
+  }
+
+  if (accountVideo) {
+    accountVideo.textContent =
+      `${sessionProcessed} / ${MAX_VIDEOS_PER_SESSION}`;
+  }
+
+  if (videoProgress) {
+    const percent = total > 0
+      ? Math.min((completed / total) * 100, 100)
+      : 0;
+
+    videoProgress.style.width = `${percent}%`;
+  }
+}
+
+/* ================================
+   PILIH MODE
+================================ */
+
 window.setMode = function (mode) {
-  if (
-    mode !== "worker" &&
-    mode !== "monitor"
-  ) {
+  if (mode !== "worker" && mode !== "monitor") {
     return;
   }
 
   try {
+    // Jangan mengganti mode ketika tugas sedang diproses.
+    if (processingQueue) {
+      updateStatus(
+        "Sedang bekerja",
+        "Diproses",
+        "Menunggu",
+        "Tunggu sampai proses saat ini berhenti sebelum mengganti mode."
+      );
+      return;
+    }
+
     setDeviceRole(mode);
 
     updateAppState({
@@ -191,41 +150,30 @@ window.setMode = function (mode) {
     });
 
     updateModeUI(mode);
+    updateProgress();
 
     if (mode === "worker") {
       updateStatus(
         "Siap",
         "Menunggu",
-        "Siap",
-        "Worker aktif.<br>" +
-        "Siap menerima antrean video."
+        "Manual",
+        "Worker aktif.\nSiap memproses antrean video."
       );
     } else {
       updateStatus(
         "Monitor",
         "Menunggu",
-        "Menunggu",
-        "Monitor aktif.<br>" +
-        "Menunggu Worker terhubung."
+        "Manual",
+        "Monitor aktif.\nPemrosesan video dilakukan di Worker."
       );
     }
-
-    updateProgress();
-
   } catch (error) {
-    updateStatus(
-      "Error",
-      "Gagal",
-      "Gagal",
-      "Gagal mengubah mode.<br>" +
-      error.message
-    );
+    updateStatus("Error", "Gagal", "Manual", error.message);
   }
 };
 
-
 /* ================================
-   MULAI
+   MULAI SESI
 ================================ */
 
 window.startAutomation = function () {
@@ -233,415 +181,306 @@ window.startAutomation = function () {
     updateStatus(
       "Monitor",
       "Menunggu",
-      "Menunggu",
-      "Perangkat harus berada dalam Worker Mode."
+      "Manual",
+      "Pilih Worker Mode pada perangkat yang memproses video."
     );
-
     return;
   }
 
-  updateAppState({
-    running: true
-  });
+  if (processingQueue) {
+    updateStatus(
+      "Berjalan",
+      "Diproses",
+      "Manual",
+      "Sesi masih berjalan. Tunggu sampai selesai."
+    );
+    return;
+  }
+
+  sessionProcessed = 0;
+
+  updateAppState({ running: true });
 
   updateStatus(
     "Berjalan",
-    "Berjalan",
-    "Bekerja",
-    "Worker dimulai.<br>" +
-    "Sistem siap memproses antrean video."
+    "Menunggu",
+    "Manual",
+    "Sesi dimulai.\nBatas sesi: maksimal 10 video berhasil diproses."
   );
 
   updateProgress();
-
   processPendingTasks();
 };
-
 
 /* ================================
    JEDA
 ================================ */
 
 window.pauseAutomation = function () {
-  updateAppState({
-    running: false
-  });
+  updateAppState({ running: false });
 
   updateStatus(
     "Dijeda",
     "Dijeda",
-    "Dijeda",
-    "Automation dijeda.<br>" +
-    "Tidak ada proses baru yang dijalankan."
+    "Manual",
+    "Sesi dijeda. Tugas yang belum diproses tetap berada dalam antrean."
   );
 
   updateProgress();
 };
-
 
 /* ================================
    TUGAS UJI
 ================================ */
 
 window.createTestTask = function () {
+  if (!isWorkerDevice()) {
+    updateStatus(
+      "Monitor",
+      "Menunggu",
+      "Manual",
+      "Pilih Worker Mode terlebih dahulu."
+    );
+    return;
+  }
+
   try {
-    if (!isWorkerDevice()) {
-      updateStatus(
-        "Monitor",
-        "Menunggu",
-        "Menunggu",
-        "Perangkat harus berada dalam Worker Mode."
-      );
-
-      return;
-    }
-
-    const task =
-      createTestVideoTask();
+    const task = createTestVideoTask();
 
     updateStatus(
-      "Berjalan",
-      "Tugas masuk",
-      "Bekerja",
-      "TUGAS UJI BERHASIL DIBUAT.<br>" +
-      `ID tugas: ${task.id}<br>` +
-      "Status: Menunggu diproses."
+      "Tugas dibuat",
+      "Menunggu",
+      "Manual",
+      `Tugas uji berhasil dibuat.\nID: ${task.id}\nStatus: Menunggu`
     );
 
     updateProgress();
 
-    console.log(
-      "TEST TASK:",
-      task
-    );
-
-    if (getAppState().running) {
-      processTask(task.id);
+    if (getAppState().running && !processingQueue) {
+      processPendingTasks();
     }
-
   } catch (error) {
-    updateStatus(
-      "Error",
-      "Gagal",
-      "Gagal",
-      "TUGAS UJI ERROR:<br>" +
-      error.message
-    );
-
-    console.error(
-      "TUGAS UJI ERROR:",
-      error
-    );
+    updateStatus("Error", "Gagal", "Manual", error.message);
   }
 };
 
-
 /* ================================
-   TEST TELEGRAM SEBENARNYA
+   UJI PARSER TELEGRAM
 ================================ */
 
 window.createTelegramTest = function () {
-  try {
-    if (!isWorkerDevice()) {
-      updateStatus(
-        "Monitor",
-        "Menunggu",
-        "Menunggu",
-        "Perangkat harus berada dalam Worker Mode."
-      );
-
-      return;
-    }
-
-    /*
-     * Membuat pesan Telegram simulasi:
-     *
-     * Hari ini
-     * Video 1
-     * Video 2
-     * .
-     * Akun 2
-     * Video 3
-     */
-
-    const messages =
-      createTelegramTestTasks();
-
-    /*
-     * Parser Telegram membaca struktur
-     * dan menentukan akun masing-masing.
-     */
-
-    const tasks =
-      createTelegramTasks(messages);
-
-    const account1 =
-      tasks.filter(
-        task =>
-          task.account === 1
-      );
-
-    const account2 =
-      tasks.filter(
-        task =>
-          task.account === 2
-      );
-
-    let log =
-      "✓ TELEGRAM PARSER BERHASIL.<br><br>" +
-
-      `Total tugas: ${tasks.length}<br>` +
-
-      `Akun 1: ${account1.length} video<br>` +
-
-      `Akun 2: ${account2.length} video<br><br>`;
-
-    tasks.forEach(
-      (task, index) => {
-
-        log +=
-          `${index + 1}. ` +
-
-          `Akun ${task.account}<br>` +
-
-          `${task.title}<br>` +
-
-          `ID: ${task.id}<br><br>`;
-      }
+  if (!isWorkerDevice()) {
+    updateStatus(
+      "Monitor",
+      "Menunggu",
+      "Manual",
+      "Pilih Worker Mode terlebih dahulu."
     );
+    return;
+  }
+
+  try {
+    // Pesan simulasi untuk satu sesi, tanpa pergantian akun.
+    const messages = createTelegramTestTasks();
+    const tasks = createTelegramTasks(messages);
+
+    let log = `Uji parser selesai.\nTotal tugas dibuat: ${tasks.length}\n\n`;
+
+    tasks.forEach((task, index) => {
+      log += `${index + 1}. ${task.title}\nID: ${task.id}\n\n`;
+    });
 
     updateStatus(
-      "Telegram Test",
+      "Uji parser",
       "Tugas masuk",
-      "Bekerja",
+      "Manual",
       log
     );
 
     updateProgress();
 
-    console.log(
-      "TELEGRAM MESSAGES:",
-      messages
-    );
-
-    console.log(
-      "TELEGRAM TASKS:",
-      tasks
-    );
-
+    console.log("TELEGRAM TEST TASKS:", tasks);
   } catch (error) {
+    updateStatus("Error", "Gagal", "Manual", error.message);
+  }
+};
+
+/* ================================
+   PROSES ANTREAN
+================================ */
+
+async function processPendingTasks() {
+  if (processingQueue || !isWorkerDevice()) {
+    return;
+  }
+
+  processingQueue = true;
+
+  try {
+    while (
+      isWorkerDevice() &&
+      getAppState().running &&
+      sessionProcessed < MAX_VIDEOS_PER_SESSION
+    ) {
+      const task = getQueue().find(
+        item => item.status === "pending"
+      );
+
+      if (!task) {
+        updateAppState({ running: false });
+
+        updateStatus(
+          "Antrean habis",
+          "Menunggu",
+          "Manual",
+          `Tidak ada tugas tersisa.\nVideo berhasil diproses pada sesi ini: ${sessionProcessed}.`
+        );
+
+        break;
+      }
+
+      const succeeded = await processTask(task.id);
+
+      if (succeeded) {
+        sessionProcessed++;
+        updateProgress();
+      }
+    }
+
+    if (
+      sessionProcessed >= MAX_VIDEOS_PER_SESSION
+    ) {
+      updateAppState({ running: false });
+
+      updateStatus(
+        "Sesi selesai",
+        "Berhenti otomatis",
+        "Ganti manual",
+        "Batas 10 video tercapai.\nAplikasi berhenti otomatis.\nSilakan ganti akun Shopee secara manual, lalu tekan MULAI untuk sesi berikutnya."
+      );
+    } else if (!getAppState().running) {
+      updateStatus(
+        "Dijeda",
+        "Menunggu",
+        "Manual",
+        `Sesi berhenti.\nVideo berhasil diproses: ${sessionProcessed}.\nTekan MULAI untuk memulai sesi baru.`
+      );
+    }
+  } catch (error) {
+    updateAppState({ running: false });
 
     updateStatus(
       "Error",
       "Gagal",
-      "Gagal",
-
-      "TELEGRAM PARSER ERROR:<br>" +
-      error.message
+      "Manual",
+      `Proses antrean mengalami kesalahan.\n${error.message}`
     );
-
-    console.error(
-      "TELEGRAM PARSER ERROR:",
-      error
-    );
-  }
-};
-
-
-/* ================================
-   PROCESS ANTREAN
-================================ */
-
-async function processPendingTasks() {
-
-  const queue =
-    getQueue();
-
-  const pendingTasks =
-    queue.filter(
-      task =>
-        task.status === "pending"
-    );
-
-  for (
-    const task of pendingTasks
-  ) {
-
-    if (!isWorkerDevice()) {
-      return;
-    }
-
-    if (!getAppState().running) {
-      return;
-    }
-
-    await processTask(
-      task.id
-    );
+  } finally {
+    processingQueue = false;
+    updateProgress();
   }
 }
 
-
 /* ================================
-   PROCESS SATU TASK
+   PROSES SATU TUGAS
 ================================ */
 
 async function processTask(taskId) {
-
-  if (!isWorkerDevice()) {
-    return;
+  if (!isWorkerDevice() || !getAppState().running) {
+    return false;
   }
 
-  if (!getAppState().running) {
-    return;
-  }
+  const task = getQueue().find(
+    item => item.id === taskId
+  );
 
-  const task =
-    getQueue().find(
-      item =>
-        item.id === taskId
-    );
-
-  if (!task) {
-    return;
+  if (!task || task.status !== "pending") {
+    return false;
   }
 
   try {
-
     startTask(taskId);
 
     updateStatus(
       "Berjalan",
       "Diproses",
-      "Bekerja",
-
-      "Worker sedang memproses tugas.<br>" +
-
-      `ID tugas: ${taskId}<br>` +
-
-      `Akun: ${task.account || "-"}<br>` +
-
-      "Status: Processing..."
+      "Manual",
+      `Memproses tugas.\nID: ${taskId}\nVideo sesi ini: ${sessionProcessed} / ${MAX_VIDEOS_PER_SESSION}`
     );
 
     updateProgress();
 
-    await new Promise(
-      resolve =>
-        setTimeout(
-          resolve,
-          2000
-        )
-    );
+    // Simulasi pemrosesan yang digunakan versi saat ini.
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const result = {
+    if (!getAppState().running || !isWorkerDevice()) {
+      return false;
+    }
+
+    completeTask(taskId, {
       success: true,
-
-      message:
-        "Video berhasil diproses",
-
-      account:
-        task.account || null,
-
-      processedAt:
-        new Date().toISOString()
-    };
-
-    completeTask(
-      taskId,
-      result
-    );
-
-    updateStatus(
-      "Berjalan",
-      "Selesai",
-      "Bekerja",
-
-      "Tugas video berhasil diselesaikan.<br>" +
-
-      `ID tugas: ${taskId}<br>` +
-
-      `Akun: ${task.account || "-"}<br>` +
-
-      "Status: Completed."
-    );
+      message: "Simulasi pemrosesan selesai",
+      processedAt: new Date().toISOString()
+    });
 
     updateProgress();
-
+    return true;
   } catch (error) {
-
-    failTask(
-      taskId,
-      error
-    );
+    failTask(taskId, error);
 
     updateStatus(
-      "Berjalan",
+      "Tugas gagal",
       "Gagal",
-      "Bekerja",
-
-      "Tugas video gagal diproses.<br>" +
-
-      `ID tugas: ${taskId}<br>` +
-
-      `Error: ${error.message}`
+      "Manual",
+      `Tugas gagal diproses.\nID: ${taskId}\n${error.message}`
     );
 
     updateProgress();
+    return false;
   }
 }
 
+/* ================================
+   STATUS KONEKSI TELEGRAM
+================================ */
+
+window.connectTelegram = function () {
+  // Tidak mengaku terhubung sebelum backend Telegram aktif.
+  saveTelegramConfig({
+    connected: false,
+    configured: false
+  });
+
+  const status = getTelegramStatus();
+
+  updateStatus(
+    "Belum terhubung",
+    "Backend diperlukan",
+    "Manual",
+    "Koneksi Telegram asli belum aktif.\nBot dan backend harus dikonfigurasi terlebih dahulu."
+  );
+
+  console.log("TELEGRAM STATUS:", status);
+};
+
+window.disconnectTelegram = function () {
+  disconnectTelegram();
+
+  updateStatus(
+    "Telegram terputus",
+    "Tidak aktif",
+    "Manual",
+    "Status konfigurasi Telegram lokal telah dihapus."
+  );
+};
 
 /* ================================
-   START APP
+   MULAI APLIKASI
 ================================ */
 
 if (app.deviceMode) {
-  updateModeUI(
-    app.deviceMode
-  );
+  updateModeUI(app.deviceMode);
 }
 
 updateProgress();
-import {
-  saveTelegramConfig,
-  getTelegramStatus,
-  disconnectTelegram
-} from "./telegram.js";
-
-window.connectTelegram = function () {
-  try {
-    saveTelegramConfig({
-      connected: true,
-      configured: false
-    });
-
-    const status =
-      getTelegramStatus();
-
-    updateStatus(
-      "Telegram",
-      status.connected
-        ? "Terhubung"
-        : "Terputus",
-      "Siap",
-      "Telegram berhasil dihubungkan.<br>" +
-      "Status: Koneksi lokal aktif.<br>" +
-      "Tahap berikutnya: koneksi Telegram sebenarnya."
-    );
-
-    console.log(
-      "TELEGRAM STATUS:",
-      status
-    );
-
-  } catch (error) {
-    updateStatus(
-      "Error",
-      "Gagal",
-      "Gagal",
-      "Gagal menghubungkan Telegram.<br>" +
-      error.message
-    );
-  }
-};
+  
