@@ -8,8 +8,6 @@ const TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-// Penyimpanan sementara untuk uji coba.
-// Catatan: memori ini tidak permanen pada Vercel.
 const pendingVideos = new Map();
 const pendingLinks = new Map();
 
@@ -75,13 +73,14 @@ return urls
 }
 
 async function pairAndReply(chatId) {
-const video = pendingVideos.get(String(chatId));
-const link = pendingLinks.get(String(chatId));
+const key = String(chatId);
+const video = pendingVideos.get(key);
+const link = pendingLinks.get(key);
 
 if (!video || !link) return;
 
-pendingVideos.delete(String(chatId));
-pendingLinks.delete(String(chatId));
+pendingVideos.delete(key);
+pendingLinks.delete(key);
 
 console.log("VIDEO_SHOPEE_PAIR", JSON.stringify({
 chatId,
@@ -96,7 +95,7 @@ text:
 "Video dan link Shopee berhasil dipasangkan!\n\n" +
 "Video: " + video.fileName + "\n" +
 "Link: " + link + "\n\n" +
-"Catatan: video sudah terdeteksi, tetapi belum diunduh atau diproses untuk posting."
+"Catatan: video baru terdeteksi, belum diunduh atau diposting."
 });
 }
 
@@ -117,7 +116,6 @@ telegramConfigured: Boolean(TOKEN)
 });
 
 app.post("/telegram/webhook", async (req, res) => {
-// Balas Telegram segera agar webhook tidak menunggu proses.
 res.status(200).json({ ok: true });
 
 try {
@@ -129,11 +127,15 @@ if (!message || !chatId) return;
 const key = String(chatId);
 const text = message.text || message.caption || "";
 
+const video = getVideo(message);
+const link = getShopeeLink(text);
+
 console.log("TELEGRAM_INCOMING", JSON.stringify({
   chatId,
   messageId: message.message_id,
   hasText: Boolean(text),
-  hasVideo: Boolean(getVideo(message))
+  hasVideo: Boolean(video),
+  hasShopeeLink: Boolean(link)
 }));
 
 if (text.startsWith("/start")) {
@@ -143,9 +145,6 @@ if (text.startsWith("/start")) {
   });
   return;
 }
-
-const video = getVideo(message);
-const link = getShopeeLink(text);
 
 if (video) {
   pendingVideos.set(key, video);
