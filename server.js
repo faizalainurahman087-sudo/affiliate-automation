@@ -8,10 +8,11 @@ const TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-const pendingVideos = new Map();
-const pendingLinks = new Map();
+// Penyimpanan sementara untuk pengujian.
+const videos = new Map();
+const links = new Map();
 
-async function telegram(method, body) {
+async function telegram(method, data) {
 if (!TOKEN) {
 throw new Error("TELEGRAM_BOT_TOKEN belum diatur");
 }
@@ -20,8 +21,10 @@ const response = await fetch(
 "https://api.telegram.org/bot${TOKEN}/${method}",
 {
 method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(body)
+headers: {
+"Content-Type": "application/json"
+},
+body: JSON.stringify(data)
 }
 );
 
@@ -36,35 +39,35 @@ throw new Error(
 return result;
 }
 
-function getVideo(message) {
+function detectVideo(message) {
 if (message.video) {
 return {
 fileId: message.video.file_id,
-fileName: message.video.file_name || "video",
-mimeType: message.video.mime_type || "video/mp4"
+name: message.video.file_name || "video",
+type: "video"
 };
 }
 
-const doc = message.document;
+const file = message.document;
 
 if (
-doc &&
+file &&
 (
-(doc.mime_type || "").startsWith("video/") ||
-/.(mp4|mov|m4v|webm)$/i.test(doc.file_name || "")
+(file.mime_type || "").startsWith("video/") ||
+/.(mp4|mov|m4v|webm)$/i.test(file.file_name || "")
 )
 ) {
 return {
-fileId: doc.file_id,
-fileName: doc.file_name || "video",
-mimeType: doc.mime_type || "video/mp4"
+fileId: file.file_id,
+name: file.file_name || "video",
+type: "document"
 };
 }
 
 return null;
 }
 
-function getShopeeLink(text) {
+function detectShopeeLink(text) {
 const urls = (text || "").match(/https?://\S+/gi) || [];
 
 return urls
@@ -72,32 +75,72 @@ return urls
 .find(url => /shopee.[a-z.]+|shp.ee/i.test(url)) || null;
 }
 
-async function pairAndReply(chatId) {
+async function processMessage(message) {
+const chatId = message.chat.id;
 const key = String(chatId);
-const video = pendingVideos.get(key);
-const link = pendingLinks.get(key);
+const text = message.text || message.caption || "";
 
-if (!video || !link) return;
+if (text.startsWith("/start")) {
+await telegram("sendMessage", {
+chat_id: chatId,
+text:
+"Affiliate Automation aktif menerima pesan. " +
+"Backend sudah terhubung."
+});
+return;
+}
 
-pendingVideos.delete(key);
-pendingLinks.delete(key);
+const video = detectVideo(message);
+const link = detectShopeeLink(text);
 
-console.log("VIDEO_SHOPEE_PAIR", JSON.stringify({
+console.log("TELEGRAM_MESSAGE", JSON.stringify({
 chatId,
-fileName: video.fileName,
-fileId: video.fileId,
-link
+messageId: message.message_id,
+hasText: Boolean(text),
+hasVideo: Boolean(video),
+hasShopeeLink: Boolean(link)
+}));
+
+if (video) {
+videos.set(key, video);
+console.log("VIDEO_RECEIVED", video.name);
+}
+
+if (link) {
+links.set(key, link);
+console.log("SHOPEE_LINK_RECEIVED", link);
+}
+
+const savedVideo = videos.get(key);
+const savedLink = links.get(key);
+
+if (!savedVideo || !savedLink) {
+return;
+}
+
+videos.delete(key);
+links.delete(key);
+
+console.log("VIDEO_LINK_MATCHED", JSON.stringify({
+chatId,
+videoName: savedVideo.name,
+fileId: savedVideo.fileId,
+link: savedLink
 }));
 
 await telegram("sendMessage", {
 chat_id: chatId,
 text:
-"Video dan link Shopee berhasil dipasangkan!\n\n" +
-"Video: " + video.fileName + "\n" +
-"Link: " + link + "\n\n" +
-"Catatan: video baru terdeteksi, belum diunduh atau diposting."
+"Video dan link Shopee berhasil terdeteksi!\n\n" +
+"Video: " + savedVideo.name + "\n" +
+"Link: " + savedLink + "\n\n" +
+"Status: terdeteksi, belum diunduh atau diposting."
 });
 }
+
+app.get("/", (req, res) => {
+res.send("Affiliate Automation Backend aktif");
+});
 
 app.get("/health", (req, res) => {
 res.json({
@@ -115,54 +158,22 @@ telegramConfigured: Boolean(TOKEN)
 });
 });
 
-app.post("/telegram/webhook", async (req, res) => {
+app.post("/telegram/webhook", (req, res) => {
+// Mengakui update Telegram sebelum memprosesnya.
 res.status(200).json({ ok: true });
 
-try {
-const message = req.body?.message;
-const chatId = message?.chat?.id;
+const message = req.body && req.body.message;
 
-if (!message || !chatId) return;
-
-const key = String(chatId);
-const text = message.text || message.caption || "";
-
-const video = getVideo(message);
-const link = getShopeeLink(text);
-
-console.log("TELEGRAM_INCOMING", JSON.stringify({
-  chatId,
-  messageId: message.message_id,
-  hasText: Boolean(text),
-  hasVideo: Boolean(video),
-  hasShopeeLink: Boolean(link)
-}));
-
-if (text.startsWith("/start")) {
-  await telegram("sendMessage", {
-    chat_id: chatId,
-    text: "Affiliate Automation aktif menerima pesan. Backend sudah terhubung."
-  });
-  return;
+if (!message || !message.chat) {
+console.log("Webhook diterima tanpa pesan biasa.");
+return;
 }
 
-if (video) {
-  pendingVideos.set(key, video);
-  console.log("VIDEO_RECEIVED", video.fileName);
-}
-
-if (link) {
-  pendingLinks.set(key, link);
-  console.log("SHOPEE_LINK_RECEIVED", link);
-}
-
-await pairAndReply(chatId);
-
-} catch (error) {
-console.error("Telegram error:", error.stack || error.message);
-}
+processMessage(message).catch(error => {
+console.error("TELEGRAM_PROCESS_ERROR", error.stack || error.message);
+});
 });
 
 app.listen(PORT, () => {
-console.log("Backend berjalan di port ${PORT}");
+console.log("Affiliate Automation berjalan di port ${PORT}");
 });
